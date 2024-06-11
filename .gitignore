@@ -1,0 +1,10 @@
+compile
+configure
+depcomp
+install-sh
+missing
+/build/
+/nbproject/
+/dist/
+**/Makefile.in
+/autom4te.cache/
