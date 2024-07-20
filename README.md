@@ -34,7 +34,7 @@ I cannot understand, how and why driving LED strip became a 'get-started' level 
 
 * Set your environment variables (`$PATH` for `xtensa-esp32-elf` and `$IDF_TOOLS_PATH`(?) for `esptool.py`)
 
-* Follow installation instructions untill `make` (`make install` is not reuqired).
+* Follow [installation instruction](INSTALL) untill `make` (`make install` is not reuqired).
 Personally, I always do multiple `VPATH` builds with different configuration settings.
 In order to use the `xtensa-esp32-elf` toolchain, you have to call the configure script with option
 `--host=xtensa-esp32-elf`.
@@ -44,7 +44,7 @@ the `examples` subdirectory (within the build / dist / VPATH directory) contains
 
 * Prepare your ESP32 device (there must be a figure in the README of the given example showing pin connections).
 
-* Flash the binary to the device. Use either your own flashing tool or [direct flashing](scripts/flash.sh) / [flashing after make](scripts/mflash.sh)
+* Flash the binary to the device. Use either your own flashing tool or [my flashing script](scripts/flash.sh).
 
 #### Writing your own Bilis ESP32 application
 
