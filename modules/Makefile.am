@@ -6,10 +6,10 @@ libesp32modules_a_AR=$(AR) rcs
 
 lib_LIBRARIES = libesp32modules.a
 
-include_HEADERS = bme280.h
+include_HEADERS = bh1750.h bme280.h
 nodist_include_HEADERS =
 
-libesp32modules_a_SOURCES = bme280.c
+libesp32modules_a_SOURCES = bh1750.c bme280.c
 nodist_libesp32modules_a_SOURCES =
 
 CLEANFILES =

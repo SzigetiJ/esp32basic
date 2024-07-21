@@ -27,6 +27,7 @@
 #include "lockmgr.h"
 #include "typeaux.h"
 #include "bme280.h"
+#include "bh1750.h"
 
 // =================== Hard constants =================
 // #1: Timings
@@ -40,6 +41,8 @@
 #define I2CSCAN_PERIOD_MS 8600U
 #define ALARM_PERIOD_MS 4500U
 
+#define BH1750_RETRY_WAIT_HMS 10U
+
 // #2: Channels / wires / addresses
 #define I2C0_SCL_GPIO 22U
 #define I2C0_SDA_GPIO 23U
@@ -49,14 +52,17 @@
 #define OLED_I2C_CH I2C1
 #define OLED_I2C_SLAVEADDR 0x3c
 
-#define BH1270_I2C_CH I2C1
-#define BH1270_I2C_SLAVEADDR 0x23
+#define BH1750_I2C_CH I2C1
+#define BH1750_I2C_SLAVEADDR 0x23
 
 #define BME280_I2C_CH I2C1
 #define BME280_I2C_SLAVEADDR 0x76
 
 // #3: Sizes
 #define LOG_BUFLEN 120
+
+// #4: Others
+#define BH1750_READ_RETRIES 5U
 
 // ============= Local types ===============
 
@@ -78,18 +84,11 @@ typedef enum {
 } EDisplayState;
 
 typedef enum {
-  eBH1750PowerOn = 0,
-  eBH1750SendMeasureCmd,
-  eBH1750SendReadCmd,
-  eBH1750EvalData
-} BH150State;
-
-typedef struct {
-  const char *pcName;
-  uint8_t u8Cmd;
-  uint32_t u32msMeasureTime;
-  uint16_t u16mResultMultiplier;
-} BH17501TMeasureParam;
+  BH1750_PH_INIT,
+  BH1750_PH_RESET,
+  BH1750_PH_MEASURE,
+  BH1750_PH_READ
+} EBh1750Phase;
 
 typedef struct {
   InterruptEntry sRoutine;
@@ -114,8 +113,10 @@ static void _i2c_release_cycle(uint64_t u64Ticks);
 static void _switch_leds_init(TimerId sTimer);
 static void _switch_leds_cycle(uint64_t u64Ticks);
 static void _oled_cycle(uint64_t u64Ticks);
+static void _bh1750_init(SBh1750StateDesc *psState, SI2cIfaceCfg *psIface);
+static void _bh1750_print_result(const SBh1750StateDesc *psState);
 static void _bh1750_cycle(uint64_t u64Ticks);
-static void _bme280_init(SBme280StateDesc *psState, SBme280IfaceCfg *psIface);
+static void _bme280_init(SBme280StateDesc *psState, SI2cIfaceCfg *psIface);
 static void _bme280_print_result(const SBme280TPH *psRes, uint32_t u32TFine);
 static void _bme280_cycle(uint64_t u64Ticks);
 static void _log_cycle(uint64_t u64Ticks);
@@ -153,11 +154,6 @@ const char gacOledStartSeq[] = {
 char gacOledDataSeq[] = {// shift = 3
   0x00, 0x00, 0x00, 0x40, // data sequence begins
   0xAA, 0xAA, 0xAA, 0xAA
-};
-static const BH17501TMeasureParam asBh1750Param[] = {
-  {"H", 0x20, 125, 1000},
-  {"H2", 0x21, 125, 500},
-  {"L", 0x23, 18, 1000}
 };
 
 static PeriodicCallbackDesc gsPCbDesc = {
@@ -432,91 +428,15 @@ static void _oled_cycle(uint64_t u64Ticks) {
   }
 }
 
-// Light sensor
+// Section BME280
 
-static void _bh1750_cycle(uint64_t u64Ticks) {
-  static uint64_t u64NextTick = 0;
-  static uint64_t u64CurrentMainTick = 0;
-  static uint32_t u32LastLabel;
-  static uint8_t ePhase = eBH1750PowerOn;
-  static bool bWaitingForI2C = false;
-  static const uint8_t u8CmdPowerOn = 0x01;
-  static uint8_t u8CmdMeasureIdx = 0;
-  static uint8_t au8Data[2];
-
-  if (u64NextTick <= u64Ticks) {
-    // check result of last run
-    if (bWaitingForI2C) {
-      AsyncResultEntry* psEntry = lockmgr_get_entry(u32LastLabel);
-      if (psEntry) {
-        if (psEntry->bReady) {
-          if (!(psEntry->u32IntSt & I2C_INT_MASK_ERR)) {
-            ++ePhase;
-          }
-          lockmgr_release_entry(u32LastLabel);
-          bWaitingForI2C = false;
-        } else { // still waiting for i2c bus to be ready
-          return;
-        }
-      }
-    }
-
-    // at this point i2c bus is ready
-    switch (ePhase) {
-      case eBH1750PowerOn:
-        if (lockmgr_acquire_lock(_i2c_to_lock(BH1270_I2C_CH), &u32LastLabel)) {
-          i2c_write(OLED_I2C_CH, BH1270_I2C_SLAVEADDR, 1, &u8CmdPowerOn);
-          bWaitingForI2C = true;
-        }
-        break;
-      case eBH1750SendMeasureCmd:
-        if (lockmgr_acquire_lock(_i2c_to_lock(BH1270_I2C_CH), &u32LastLabel)) {
-          i2c_write(OLED_I2C_CH, BH1270_I2C_SLAVEADDR, 1, &(asBh1750Param[u8CmdMeasureIdx].u8Cmd));
-          bWaitingForI2C = true;
-          u64NextTick = u64Ticks + MS2TICKS(asBh1750Param[u8CmdMeasureIdx].u32msMeasureTime);
-        }
-        break;
-      case eBH1750SendReadCmd:
-        if (lockmgr_acquire_lock(_i2c_to_lock(BH1270_I2C_CH), &u32LastLabel)) {
-          AsyncResultEntry* psEntry = lockmgr_get_entry(u32LastLabel);
-          psEntry->pu8ReceiveBuffer = au8Data;
-          psEntry->u8RxLen = 2;
-          i2c_read(OLED_I2C_CH, BH1270_I2C_SLAVEADDR, 2);
-          bWaitingForI2C = true;
-        }
-        break;
-      case eBH1750EvalData:
-        uint32_t u32Value = (au8Data[0] << 8 | au8Data[1]) * asBh1750Param[u8CmdMeasureIdx].u16mResultMultiplier;
-        char acBuf[20];
-        strcpy(acBuf, asBh1750Param[u8CmdMeasureIdx].pcName);
-        char *pcBufE = acBuf + strlen(asBh1750Param[u8CmdMeasureIdx].pcName);
-        *(pcBufE++) = ' ';
-        pcBufE = print_dec(pcBufE, u32Value / 1000);
-        *(pcBufE++) = '.';
-        pcBufE = print_dec_padded(pcBufE, u32Value % 1000, 3, '0');
-        _uart_println("BH1750:\t", acBuf, pcBufE - acBuf);
-        ePhase = eBH1750PowerOn;
-        ++u8CmdMeasureIdx;
-        if (ARRAY_SIZE(asBh1750Param) <= u8CmdMeasureIdx) {
-          u8CmdMeasureIdx = 0;
-        }
-      default:
-        u64CurrentMainTick += MS2TICKS(BH1750_PERIOD_MS);
-        u64NextTick = u64Ticks + MS2TICKS(BH1750_PERIOD_MS);
-        if (u64CurrentMainTick < u64NextTick) {
-          u64NextTick = u64CurrentMainTick;
-        }
-    }
-  }
-}
-
-static void _bme280_init(SBme280StateDesc *psState, SBme280IfaceCfg *psIface) {
+static void _bme280_init(SBme280StateDesc *psState, SI2cIfaceCfg *psIface) {
   *psState = bme280_init_state();
   bme280_set_osrs_h(psState, BME280_OSRS_8);
   bme280_set_osrs_t(psState, BME280_OSRS_8);
   bme280_set_osrs_p(psState, BME280_OSRS_8);
   bme280_set_mode_forced(psState);
-  *psIface = (SBme280IfaceCfg){
+  *psIface = (SI2cIfaceCfg){
     .eBus = BME280_I2C_CH,
     .eLck = _i2c_to_lock(BME280_I2C_CH),
     .u8SlaveAddr = BME280_I2C_SLAVEADDR
@@ -544,7 +464,7 @@ static void _bme280_cycle(uint64_t u64Ticks) {
   static uint64_t u64NextTick = MS2TICKS(BME280_PERIOD_MS);
   static bool bFirstRun = true;
   static SBme280StateDesc sState;
-  static SBme280IfaceCfg sIface;
+  static SI2cIfaceCfg sIface;
 
   if (bFirstRun) {
     _bme280_init(&sState, &sIface);
@@ -570,6 +490,104 @@ static void _bme280_cycle(uint64_t u64Ticks) {
     }
   }
 }
+
+// Section BH1750FVI
+
+static void _bh1750_init(SBh1750StateDesc *psState, SI2cIfaceCfg *psIface) {
+  *psState = bh1750_init_state();
+  *psIface = (SI2cIfaceCfg){
+    .eBus = BME280_I2C_CH,
+    .eLck = _i2c_to_lock(BH1750_I2C_CH),
+    .u8SlaveAddr = BH1750_I2C_SLAVEADDR
+  };
+}
+
+static void _bh1750_print_result(const SBh1750StateDesc *psState) {
+  static const char *acBh1750MResName[] = {
+    "H", "H2", "XX", "L"
+  };
+  EBh1750MeasRes eMRes = bh1750_get_mres(psState);
+  uint8_t u8MTime = bh1750_get_mtime(psState);
+  uint8_t u16Result = conv16be(psState->u16beResult);
+  uint32_t u32mLx = bh1750_result_to_mlx(u16Result, u8MTime, eMRes);
+  char acBuf[40];
+  char *pcBufE = acBuf;
+  strcpy(pcBufE, acBh1750MResName[eMRes]);
+  pcBufE += strlen(acBh1750MResName[eMRes]);
+  *(pcBufE++) = ':';
+  *(pcBufE++) = ' ';
+  pcBufE = print_decmilli(pcBufE, u32mLx, '.');
+
+  _uart_println("BH1750 ", acBuf, pcBufE - acBuf);
+}
+
+static void _bh1750_cycle(uint64_t u64Ticks) {
+  const uint8_t u8MTimeMin = 31;
+  const uint8_t u8MTimeMax = 254;
+
+  static uint64_t u64NextTick = MS2TICKS(BH1750_PERIOD_MS);
+  static SBh1750StateDesc sState;
+  static SI2cIfaceCfg sIface;
+  static EBh1750Phase ePhase = BH1750_PH_INIT;
+  static uint8_t u8Retries = BH1750_READ_RETRIES;
+  static uint8_t u8MTime = 69;
+
+  if (u64NextTick <= u64Ticks) {
+    if (ePhase == BH1750_PH_INIT) {
+      _bh1750_init(&sState, &sIface);
+    }
+    uint32_t u32hmsWaitHint = 0;
+    bool bResultReady = false;
+    bool bSeqReady = bh1750_async_rx_cycle(&sState, &u32hmsWaitHint);
+    if (bSeqReady) {
+      switch (ePhase) {
+        case BH1750_PH_MEASURE:
+          // switch to read
+          ePhase = BH1750_PH_READ;
+          bh1750_read(&sState);
+          break;
+        case BH1750_PH_READ:
+          // check result and conditionally switch to reset
+          if (0 != sState.u16beResult || 0 == u8Retries--) {
+            ePhase = BH1750_PH_RESET;
+            bh1750_reset(&sState); // in case of one-time measurement this command implies POWER_ON
+            bResultReady = true;
+            u8Retries = BH1750_READ_RETRIES;
+          } else {
+            // EITHER 0 was measured OR result still not ready
+            _uart_println("BH1750 retry", NULL, 0);
+            u32hmsWaitHint += BH1750_RETRY_WAIT_HMS; // so let's wait some dt
+          }
+          break;
+        case BH1750_PH_RESET: // result register is reset
+        case BH1750_PH_INIT: // there was no action before
+          // switch to measure
+          ePhase = BH1750_PH_MEASURE;
+          bh1750_measure(&sState, false, bh1750_measres_next(bh1750_get_mres(&sState)));
+          if (bh1750_get_mres(&sState) == BH1750_RES_H) {
+            do {
+              u8MTime += 5;
+            } while (u8MTime < u8MTimeMin || u8MTimeMax < u8MTime);
+            bh1750_set_mtime(&sState, u8MTime);
+          }
+          break;
+        default:
+          ;
+      }
+    }
+    if (bResultReady) {
+      _bh1750_print_result(&sState);
+      u64NextTick += MS2TICKS(BH1750_PERIOD_MS);
+    } else { // TX side
+      if (u32hmsWaitHint == 0) {
+        bh1750_async_tx_cycle(&sIface, &sState);
+      } else {
+        u64NextTick += MS2TICKS(u32hmsWaitHint) / 2;
+      }
+    }
+  }
+}
+
 
 // Logger
 

@@ -146,9 +146,9 @@ static int32_t _compensate_T(int32_t i32T, const SCalib *psCalib, uint32_t *t_fi
 static uint32_t _compensate_P(int32_t i32P, const SCalib *psCalib, uint32_t t_fine);
 static uint32_t _compensate_H(int32_t i32H, const SCalib *psCalib, uint32_t t_fine);
 static void _set_mode(SBme280StateDesc *psState, EMode eMode);
-static inline void _write_byte(const SBme280IfaceCfg *psIface, SBme280StateDesc *psState, uint8_t u8MemAddr, uint8_t u8Value);
-static void _write_cfgbyte(const SBme280IfaceCfg *psIface, SBme280StateDesc *psState, uint8_t u8MemAddr);
-static void _read_bytes(const SBme280IfaceCfg *psIface, AsyncResultEntry* psEntry, SBme280StateDesc *psState, uint8_t *pu8Dest, uint8_t u8MemAddr, uint8_t u8MemLen);
+static inline void _write_byte(const SI2cIfaceCfg *psIface, SBme280StateDesc *psState, uint8_t u8MemAddr, uint8_t u8Value);
+static void _write_cfgbyte(const SI2cIfaceCfg *psIface, SBme280StateDesc *psState, uint8_t u8MemAddr);
+static void _read_bytes(const SI2cIfaceCfg *psIface, AsyncResultEntry* psEntry, SBme280StateDesc *psState, uint8_t *pu8Dest, uint8_t u8MemAddr, uint8_t u8MemLen);
 
 // ============ Internal function definitions =================
 /**
@@ -252,7 +252,7 @@ static void _set_mode(SBme280StateDesc *psState, EMode eMode) {
  * @param u8MemAddr Register address.
  * @param u8Value Value to write into the register.
  */
-static inline void _write_byte(const SBme280IfaceCfg *psIface, SBme280StateDesc *psState, uint8_t u8MemAddr, uint8_t u8Value) {
+static inline void _write_byte(const SI2cIfaceCfg *psIface, SBme280StateDesc *psState, uint8_t u8MemAddr, uint8_t u8Value) {
   uint8_t au8Buf[] = {
     u8MemAddr,
     u8Value
@@ -269,7 +269,7 @@ static inline void _write_byte(const SBme280IfaceCfg *psIface, SBme280StateDesc 
  * @param psState Internal state (local configuration data is stored here).
  * @param u8MemAddr Register address.
  */
-static void _write_cfgbyte(const SBme280IfaceCfg *psIface, SBme280StateDesc *psState, uint8_t u8MemAddr) {
+static void _write_cfgbyte(const SI2cIfaceCfg *psIface, SBme280StateDesc *psState, uint8_t u8MemAddr) {
   _write_byte(psIface, psState, u8MemAddr, psState->au8Config[u8MemAddr - MEMADDR_CTRLH]);
 }
 
@@ -282,7 +282,7 @@ static void _write_cfgbyte(const SBme280IfaceCfg *psIface, SBme280StateDesc *psS
  * @param u8MemAddr Register address.
  * @param u8MemLen Read length.
  */
-static void _read_bytes(const SBme280IfaceCfg *psIface, AsyncResultEntry* psEntry, SBme280StateDesc *psState, uint8_t *pu8Dest, uint8_t u8MemAddr, uint8_t u8MemLen) {
+static void _read_bytes(const SI2cIfaceCfg *psIface, AsyncResultEntry* psEntry, SBme280StateDesc *psState, uint8_t *pu8Dest, uint8_t u8MemAddr, uint8_t u8MemLen) {
   psEntry->pu8ReceiveBuffer = pu8Dest;
   psEntry->u8RxLen = u8MemLen;
   i2c_read_mem(psIface->eBus, psIface->u8SlaveAddr, u8MemAddr, u8MemLen);
@@ -464,7 +464,7 @@ bool bme280_async_rx_cycle(SBme280StateDesc *psState, uint32_t *pu32hmsWaitHint)
   return bRet;
 }
 
-bool bme280_async_tx_cycle(const SBme280IfaceCfg *psIface, SBme280StateDesc *psState) {
+bool bme280_async_tx_cycle(const SI2cIfaceCfg *psIface, SBme280StateDesc *psState) {
   SSyncFlags *psFlags = (SSyncFlags*) & psState->u32CommState;
 
   if (psFlags->bWaitingForRx) return false;

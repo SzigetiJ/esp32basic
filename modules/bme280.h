@@ -12,8 +12,7 @@ extern "C" {
 #endif
 
 #include <stdint.h>
-#include "i2c.h"
-#include "lockmgr.h"
+#include "i2ciface.h"
 
   /**
    *  Possible values of osrs_t, osrs_p and osrs_h (oversampling).
@@ -67,15 +66,6 @@ extern "C" {
   } SBme280TPH;
 
   /**
-   * Interface information. TODO: move this type to i2c.
-   */
-  typedef struct {
-    EI2CBus eBus;
-    uint8_t u8SlaveAddr;
-    ELockmgrResource eLck;
-  } SBme280IfaceCfg;
-
-  /**
    * State descriptor of BME280 stub.
    */
   typedef struct {
@@ -115,7 +105,7 @@ extern "C" {
   bool bme280_is_resetting(const SBme280StateDesc *psState);
 
   bool bme280_async_rx_cycle(SBme280StateDesc *psState, uint32_t *pu32hmsWaitHint);
-  bool bme280_async_tx_cycle(const SBme280IfaceCfg *psIface, SBme280StateDesc *psState);
+  bool bme280_async_tx_cycle(const SI2cIfaceCfg *psIface, SBme280StateDesc *psState);
 
 #ifdef __cplusplus
 }

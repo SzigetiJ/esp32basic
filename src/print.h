@@ -58,6 +58,15 @@ extern "C" {
     return print_dec_padded(dst_e, u32Num % 100, 2, ZERO_CHR);
   }
 
+  static inline char *print_decmilli(char *dst, uint32_t u32Num, char cSep) {
+    char *dst_e = print_dec(dst, u32Num / 1000);
+    if (dst_e == dst) {
+      *(dst_e++) = ZERO_CHR;
+    }
+    *(dst_e++) = cSep;
+    return print_dec_padded(dst_e, u32Num % 1000, 3, ZERO_CHR);
+  }
+
   static inline char hexdigit(uint8_t u8Value) {
     return (u8Value < 10 ? ZERO_CHR : HEXA_LO_CHR - 10) +u8Value;
   }
