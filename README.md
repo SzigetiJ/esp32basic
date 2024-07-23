@@ -34,7 +34,7 @@ I cannot understand, how and why driving LED strip became a 'get-started' level 
 
 * Set your environment variables (`$PATH` for `xtensa-esp32-elf` and `$IDF_TOOLS_PATH`(?) for `esptool.py`)
 
-* Follow [installation instruction](INSTALL) untill `make` (`make install` is not reuqired).
+* Follow [installation instruction](INSTALL) until `make` (`make install` is not reuqired).
 Personally, I always do multiple `VPATH` builds with different configuration settings.
 In order to use the `xtensa-esp32-elf` toolchain, you have to call the configure script with option
 `--host=xtensa-esp32-elf`.
