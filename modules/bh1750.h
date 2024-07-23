@@ -13,7 +13,7 @@ extern "C" {
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "i2ciface.h"
+#include "utils/i2ciface.h"
 
   /**
    * Possible measurement resolutions.

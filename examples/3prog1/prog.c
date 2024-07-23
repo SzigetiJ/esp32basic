@@ -28,6 +28,7 @@
 #include "typeaux.h"
 #include "bme280.h"
 #include "bh1750.h"
+#include "utils/i2cutils.h"
 
 // =================== Hard constants =================
 // #1: Timings
@@ -60,6 +61,7 @@
 
 // #3: Sizes
 #define LOG_BUFLEN 120
+#define I2CSCAN_PRINT_PER_ROW 8
 
 // #4: Others
 #define BH1750_READ_RETRIES 5U
@@ -102,7 +104,6 @@ typedef struct {
 // ================ Local function declarations =================
 static void _uart_println(const char *pcPrefix, const char *pcLine, uint8_t u8Len);
 static void _flush_message(uint64_t u64tckTimestamp);
-static bool _i2c_scan(ELockmgrResource eBus);
 static void _alternate_value(void *pvParam);
 static ELockmgrResource _i2c_to_lock(EI2CBus eBus);
 static void _schedule_isr();
@@ -189,10 +190,10 @@ static void _flush_message(uint64_t u64tckTimestamp) {
   static char buf[LOG_BUFLEN];
   char *buf_e = buf;
 
-  uint64_t u64TsDecimal = u64tckTimestamp / TICKS_PER_MS;
-  uint32_t u32TsDecimalHi = u64TsDecimal / 1000;
-  uint32_t u32TsDecimalLo = u64TsDecimal % 1000;
-  uint32_t u32TsFractional = (u64tckTimestamp % TICKS_PER_MS) * (1000000 / TICKS_PER_MS);
+  uint64_t u64TsDecimal = u64tckTimestamp / TICKS_PER_MS; // milliseconds, max. ~ 48 bits.
+  uint32_t u32TsDecimalHi = u64TsDecimal / 1000; // seconds, FIXME: max. ~ 38 bits, does not fit into uint32_t
+  uint32_t u32TsDecimalLo = u64TsDecimal % 1000; // ms part of the timestamp
+  uint32_t u32TsFractional = (u64tckTimestamp % TICKS_PER_MS) * (1000000 / TICKS_PER_MS); // µs and ns, 6 digits
 
   if (true) {
     buf_e = print_dec(buf_e, u32TsDecimalHi);
@@ -229,53 +230,6 @@ static void _flush_message(uint64_t u64tckTimestamp) {
   }
   _uart_println("LOG:\tts ", buf, buf_e - buf);
   ++u8Phase;
-}
-
-/**
- * Scans the whole I2C slave address space for devices (replying with ACK to the first I2C message).
- * This function implements both the RX and TX part of the asynchronous comm. process.
- * To perform the whole interval scan, this function must be called repeatedly
- * (after _i2c_release_cycle() calls) as long as it returns false.
- * @param eBus I2C bus to scan.
- * @return Scan finished (got beyond last slave address).
- */
-static bool _i2c_scan(ELockmgrResource eBus) {
-  static uint8_t u8SlaveAddr = -1;
-  static bool bWaitingForI2C = false;
-  static uint32_t u32LastLabel;
-
-  // check_result phase
-  if (bWaitingForI2C) {
-    AsyncResultEntry* psEntry = lockmgr_get_entry(u32LastLabel);
-    if (psEntry) {
-      if (psEntry->bReady) {
-        if (0 == (psEntry->u32IntSt & I2C_INT_MASK_ERR)) {
-          char acBuf[2];
-          char *pcBufEnd = print_hex8(acBuf, u8SlaveAddr);
-          _uart_println("I2C found at 0x", acBuf, pcBufEnd - acBuf);
-        }
-        lockmgr_release_entry(u32LastLabel);
-        bWaitingForI2C = false;
-      } else { // still waiting for i2c bus to be ready
-        return false;
-      }
-    }
-  }
-
-  // escape phase
-  if (u8SlaveAddr == 0x7f) {
-    u8SlaveAddr = -1;
-    return true;
-  }
-
-  // send message phase
-  if (lockmgr_acquire_lock(eBus, &u32LastLabel)) {
-    ++u8SlaveAddr;
-    i2c_write(eBus, u8SlaveAddr, 0, NULL);
-    bWaitingForI2C = true;
-  }
-
-  return false;
 }
 
 /**
@@ -628,11 +582,39 @@ static void _inc_cycle(uint64_t u64Ticks) {
 }
 
 static void _i2cscan_cycle(uint64_t u64Ticks) {
+  const char acPfx[] = "I2C slave(s) found:";
   static uint64_t u64NextTick = 0;
+  static SI2cScanStateDesc sState;
+  static SI2cIfaceCfg sIface;
+  static bool bFirstRun = true;
+
+  if (bFirstRun) {
+    sState = i2cutil_scan_init();
+    sIface.eBus = OLED_I2C_CH;
+    sIface.eLck = _i2c_to_lock(OLED_I2C_CH);
+    bFirstRun = false;
+  }
 
   if (u64NextTick <= u64Ticks) {
-    if (_i2c_scan(OLED_I2C_CH)) {
+    if (i2cutils_scan_cycle(&sIface, &sState)) {
+      char acBuf[5 * I2CSCAN_PRINT_PER_ROW + 2];
+      char *pcBufE = acBuf;
+      for (uint8_t i = 0; i < 128; ++i) {
+        if (sState.au8Slave[i / 8] & (1 << (i % 8))) {
+          pcBufE = str_append(pcBufE, " 0x");
+          pcBufE = print_hex8(pcBufE, i);
+          if (5 * I2CSCAN_PRINT_PER_ROW <= (pcBufE - acBuf)) {
+            _uart_println(acPfx, acBuf, pcBufE - acBuf);
+            pcBufE = acBuf;
+          }
+        }
+      }
+      if (pcBufE != acBuf) {
+        _uart_println(acPfx, acBuf, pcBufE - acBuf);
+      }
+
       u64NextTick += MS2TICKS(I2CSCAN_PERIOD_MS);
+      sState = i2cutil_scan_init();
     }
   }
 }

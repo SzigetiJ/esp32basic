@@ -12,7 +12,7 @@ extern "C" {
 #endif
 
 #include <stdint.h>
-#include "i2ciface.h"
+#include "utils/i2ciface.h"
 
   /**
    *  Possible values of osrs_t, osrs_p and osrs_h (oversampling).
