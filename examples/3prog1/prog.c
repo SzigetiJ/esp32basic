@@ -466,10 +466,8 @@ static void _bh1750_print_result(const SBh1750StateDesc *psState) {
   uint32_t u32mLx = bh1750_result_to_mlx(u16Result, u8MTime, eMRes);
   char acBuf[40];
   char *pcBufE = acBuf;
-  strcpy(pcBufE, acBh1750MResName[eMRes]);
-  pcBufE += strlen(acBh1750MResName[eMRes]);
-  *(pcBufE++) = ':';
-  *(pcBufE++) = ' ';
+  pcBufE = str_append(pcBufE, acBh1750MResName[eMRes]);
+  pcBufE = str_append(pcBufE, ": ");
   pcBufE = print_decmilli(pcBufE, u32mLx, '.');
 
   _uart_println("BH1750 ", acBuf, pcBufE - acBuf);
