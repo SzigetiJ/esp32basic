@@ -13,6 +13,8 @@ extern "C" {
 
 #include "esp32types.h"
 
+#define DPORT_PERIP_BIT_RMT 9U
+
   // Based on:
   // https://github.com/espressif/esp-idf/blob/6b3da6b188/components/soc/esp32/include/soc/dport_reg.h
 

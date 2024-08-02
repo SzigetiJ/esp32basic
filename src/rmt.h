@@ -1,0 +1,147 @@
+#ifndef RMT_H
+#define RMT_H
+
+#include "esp32types.h"
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define RMT_SIGNAL1 (0x8000)
+#define RMT_SIGNAL0 (0x0000)
+
+#define RMT_RAM_SIZE 64
+
+  typedef enum {
+    RMT_INT_RAW = 0,
+    RMT_INT_ST = 1,
+    RMT_INT_ENA = 2,
+    RMT_INT_CLR = 3
+  } E_RMT_INT_REG;
+
+  typedef enum {
+    RMT_INT_TXEND = 0,
+    RMT_INT_RXEND = 1,
+    RMT_INT_ERR = 2,
+    RMT_INT_TXTHRES = 3
+  } E_RMT_INT_TYPE;
+
+  typedef enum {
+    RMT_CH0 = 0,
+    RMT_CH1,
+    RMT_CH2,
+    RMT_CH3,
+    RMT_CH4,
+    RMT_CH5,
+    RMT_CH6,
+    RMT_CH7
+  } E_RMT_CHANNEL;
+
+  typedef volatile union {
+
+    volatile struct {
+      uint32_t u8DivCnt : 8; ///< the divider for the channel clock of channel n. (R/W)
+
+      uint32_t u16IdleThres : 16; ///< In receive mode, when no edge is detected on the input signal for longer than REG_IDLE_THRES_CHn channel clock cycles, the receive process is finished. (R/W)
+
+      uint32_t u4MemSize : 4; ///< the amount of memory blocks allocated to channel n. (R/W)
+      uint32_t bCarrierEn : 1; ///< Carrier modulation is enabled with 1, while carrier modulation is disabled with 0. (R/W)
+      uint32_t bCarrierOutLvl : 1; ///< when the carrier wave is being transmitted. Transmit on low output level with 0, and transmit on high output level with 1. (R/W)
+      uint32_t bMemPd : 1; ///< power down the entire RMT RAM block.Reset (It only exists in RMT_CH0CONF0). 1: power down memory; 0: power up memory. (R/W)
+      uint32_t rsvd31 : 1;
+    };
+    volatile uint32_t raw;
+  } S_RMT_CHCONF0_REG;
+
+  typedef volatile union {
+
+    volatile struct {
+      uint32_t bTxStart : 1; ///< Set this bit to start sending data on channel n. (R/W)
+      uint32_t bRxEn : 1; ///< Set this bit to enable receiving data on channel n. (R/W)
+      uint32_t bMemWrRst : 1; ///< Set this bit to reset the write-RAM address for channel n by accessing the receiver. (R/W)
+      uint32_t bMemRdRst : 1; ///< Set this bit to reset the read-RAM address for channel n by accessing the transmitter. (R/W)
+      uint32_t rsvd4 : 1; ///< reserved
+      uint32_t bMemOwner : 1; ///< Number 1 indicates that the receiver is using the RAM, while 0 indicates that the transmitter is using the RAM. (R/W)
+      uint32_t bTxContiMode : 1; ///< If this bit is set, instead of going to an idle state when transmission ends, the transmitter will restart transmission. This results in a repeating output signal. (R/W)
+      uint32_t bRxFilterEn : 1; ///< receive filter’s enable-bit for channel n. (R/W)
+
+      uint32_t u8RxFilterThres : 8; ///< In receive mode, channel n ignores input pulse when the pulse width is smaller than this value in APB clock periods. (R/W)
+
+      uint32_t bRefCntRst : 1; ///< Setting this bit resets the clock divider of channel n. (R/W)
+      uint32_t bRefAlwaysOn : 1; ///< select the channel’s base clock. 1:clk_apb; 0:clk_ref. (R/W)
+      uint32_t bIdleOutLvl : 1; ///< the level of output signals in channel n when the latter is in IDLE state. (R/W)
+      uint32_t bIdleOutEn : 1; ///< output enable-control bit for channel n in IDLE state. (R/W)
+      uint32_t rsvd20 : 12; ///< Reserved
+    };
+    volatile uint32_t raw;
+  } S_RMT_CHCONF1_REG;
+
+  typedef struct {
+    S_RMT_CHCONF0_REG r0;
+    S_RMT_CHCONF1_REG r1;
+  } S_RMT_CHCONF;
+
+  typedef struct {
+    uint32_t u16Low : 16;
+    uint32_t u16High : 16;
+  } S_RMT_CHCARRIER_DUTY_REG;
+
+  typedef union {
+
+    volatile struct {
+      uint32_t u9Val : 9;
+      uint32_t rsvd9 : 23;
+    };
+    volatile uint32_t raw;
+  } S_RMT_CH_TX_LIM_REG;
+
+  typedef union {
+
+    volatile struct {
+      uint32_t bMemAccessEn : 1;
+      uint32_t bMemTxWrapEn : 1;
+      uint32_t rsvd2 : 30;
+    };
+    volatile uint32_t raw;
+  } S_RMT_APB_CONF_REG;
+
+  typedef struct {
+    Reg rsvd0[8];
+    S_RMT_CHCONF asChConf[8];
+    Reg rsvd24[16];
+    Reg arInt[4];
+    S_RMT_CHCARRIER_DUTY_REG arCarrierDuty[8];
+    S_RMT_CH_TX_LIM_REG arTxLim[8];
+    S_RMT_APB_CONF_REG rApb;
+  } RMT_Type;
+
+  extern RMT_Type gsRMT;
+  extern Reg grRMTRAM[8 * 64];
+  static RMT_Type *gpsRMT = &gsRMT;
+  static RegAddr gpsRMTRAM = (RegAddr) grRMTRAM;
+
+  static inline RegAddr rmt_ram_block(uint8_t i) {
+    return gpsRMTRAM + RMT_RAM_SIZE * i;
+  }
+
+  static inline uint8_t rmt_int_idx(E_RMT_CHANNEL eChannel, E_RMT_INT_TYPE eType) {
+    return eType == RMT_INT_TXTHRES ?
+            24U + (eChannel & 7) :
+            3U * (eChannel & 7) + (uint8_t) eType;
+  }
+
+  static inline uint32_t rmt_int_bit(E_RMT_CHANNEL eChannel, E_RMT_INT_TYPE eType) {
+    return 1 << rmt_int_bit(eChannel, eType);
+  }
+
+  static inline uint8_t rmt_out_signal(E_RMT_CHANNEL eChannel) {
+    return 87 + eChannel;
+  }
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* RMT_H */
+
