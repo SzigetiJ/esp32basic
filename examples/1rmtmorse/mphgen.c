@@ -153,7 +153,7 @@ void mphgen_reset(SMphGenState *psMphGen) {
   psMphGen->eLastPhase = MORSE_NOP;
 }
 
-bool mphgen_end(SMphGenState *psState) {
+bool mphgen_end(const SMphGenState *psState) {
   return chargen_end(psState->psChGen) &&
           (psState->u8BitIdx == psState->u8BitLen);
 }

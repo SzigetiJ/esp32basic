@@ -14,8 +14,19 @@ extern "C" {
 #include "rmt.h"
 
   // ============== Types ==============
+  /**
+   * Generalized generator function generating uint16_t values.
+   * In C++, generators are functors implementing T operator()(), i.e.,
+   * parameterless function return type T.
+   * 
+   * Here, in standard C environment, we have to pass the state descriptor
+   * of the generator (pvParam) to the generator function.
+   */
   typedef uint16_t(*U16Generator)(void *pvParam);
-  typedef bool(*UniRel)(void *pvParam);
+  /**
+   * Generalized unary relation, taking a single argument.
+   */
+  typedef bool(*UniRel)(const void *pvParam);
 
   /**
    * State descriptor of Stretch Generator.
@@ -38,12 +49,29 @@ extern "C" {
   SStretchGenState rmtutils_init_stretchgenstate(uint32_t u32Multiplier, uint32_t u32Divisor, U16Generator fGen,
           UniRel fGenEnd, void *pvGenParam);
 
+  /**
+   * Adapter function to rmtutils_feed_tx().
+   * The feeder will not take directly the values from the U16Generator, but via a Stretch generator.
+   * @param eChannel
+   * @param pu16MemPos
+   * @param u16Len
+   * @param psSGenState
+   * @return 
+   */
   bool rmtutils_feed_tx_stretched(ERmtChannel eChannel, uint16_t *pu16MemPos, uint16_t u16Len, SStretchGenState *psSGenState);
 
+  /**
+   * RMT RAM block feeder function, taking RMT entries from pfGen.
+   * @param eChannel Identifies the RMT channel.
+   * @param pu16MemPos Input/output parameter, pointer to the memory offset value.
+   * In: where to start writing the memory, out: here can you continue writing the memory.
+   * @param u16Len Amount of registers(!) (pair of RMT entries) to write.
+   * @param pfGen Underlying generator to take the RMT entries from.
+   * @param pfEnd End of sequence indicator function of the underlying generator.
+   * @param pvGen Generator state descriptor to pass to pfGen and pfEnd.
+   * @return Terminating entry has been written.
+   */
   bool rmtutils_feed_tx(ERmtChannel eChannel, uint16_t *pu16MemPos, uint16_t u16Len, U16Generator pfGen, UniRel pfEnd, void *pvGen);
-
-
-
 
 #ifdef __cplusplus
 }

@@ -48,7 +48,7 @@ extern "C" {
   SCharGenState chargen_init_nowrap(const char *pcText, size_t szTextLen, char cDone);
 
   char chargen_next(SCharGenState *psState);
-  bool chargen_end(SCharGenState *psState);
+  bool chargen_end(const SCharGenState *psState);
   void chargen_reset(SCharGenState *psState);
 
 #ifdef __cplusplus

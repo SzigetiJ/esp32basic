@@ -62,7 +62,7 @@ extern "C" {
    * @param psState State descriptor.
    * @return End of the phase sequence.
    */
-  bool mphgen_end(SMphGenState *psState);
+  bool mphgen_end(const SMphGenState *psState);
 
   /**
    * Resets the generator.

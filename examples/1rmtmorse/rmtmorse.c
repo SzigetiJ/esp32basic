@@ -41,11 +41,11 @@
 // #2: Channels / wires / addresses
 #define RMTMORSE_GPIO       2U
 #define RMTMORSE_CH         RMT_CH0
-#define RMTINT_CH           23U
+//#define RMTINT_CH           23U // not used yet
 
 // #3: Sizes
-#define RMT_MEM_BLOCKS 1
-#define RMT_TXLIM ((RMT_MEM_BLOCKS * RMT_RAM_BLOCK_SIZE)/2)
+#define RMTMORSE_MEM_BLOCKS 1
+#define RMT_TXLIM ((RMTMORSE_MEM_BLOCKS * RMT_RAM_BLOCK_SIZE)/2)
 #define RMT_FEED0SIZE (2 * RMT_TXLIM)
 
 // ============= Local types ===============
@@ -54,7 +54,7 @@
 
 static uint16_t _mph_to_entry(EMorsePhase ePhase);
 static uint16_t _mph2entry_next(void *pvState);
-static bool _mph2entry_end(void *pvState);
+static bool _mph2entry_end(const void *pvState);
 
 static void _rmt_init_controller();
 static void _rmt_init_channel(ERmtChannel eChannel, uint8_t u8Pin, bool bLevel, bool bHoldLevel);
@@ -79,6 +79,14 @@ const char acMessage[] = MESSAGE;
 
 // ==================== Implementation ================
 
+/**
+ * Transforms a single morse phase into a single RMT (pre)entry using the timings
+ * given in gau16msPhaseLen.
+ * (Pre)entry means that the period of the entry is given in ms resolution,
+ * thus it still needs to be stretched according to the RMT clock source and channel divisor.
+ * @param ePhase Morse phase to transform.
+ * @return RMT (pre)entry.
+ */
 static uint16_t _mph_to_entry(EMorsePhase ePhase) {
   uint16_t u16Ret = gau16msPhaseLen[ePhase];
   if (ePhase < MORSE_SSPACE) {
@@ -87,14 +95,24 @@ static uint16_t _mph_to_entry(EMorsePhase ePhase) {
   return u16Ret;
 }
 
+/**
+ * Generator function of the Morse phase to RMT entry generator.
+ * @param pvState State descriptor of the underlying Morse phase generator.
+ * @return Generator RMT (pre)entry.
+ */
 static uint16_t _mph2entry_next(void *pvState) {
   SMphGenState *psState = (SMphGenState*) pvState;
   EMorsePhase ePhase = mphgen_next(psState);
   return _mph_to_entry(ePhase);
 }
 
-static bool _mph2entry_end(void *pvState) {
-  SMphGenState *psState = (SMphGenState*) pvState;
+/**
+ * End of sequence indicator function of the Morse phase to RMT entry generator.
+ * @param pvState State descriptor of the underlying Morse phase generator.
+ * @return End of sequence.
+ */
+static bool _mph2entry_end(const void *pvState) {
+  const SMphGenState *psState = (const SMphGenState*) pvState;
   return mphgen_end(psState);
 }
 
@@ -122,11 +140,17 @@ static void _rmt_init_channel(ERmtChannel eChannel, uint8_t u8Pin, bool bLevel, 
   // rmt channel config
   SRmtChConf rChConf = {
     .r0 =
-    {.u8DivCnt = RMT_DIVISOR, .u4MemSize = RMT_MEM_BLOCKS},
+    {.u8DivCnt = RMT_DIVISOR, .u4MemSize = RMTMORSE_MEM_BLOCKS},
     .r1 =
     {.bRefAlwaysOn = 1, .bRefCntRst = 1, .bMemRdRst = 1, .bIdleOutLvl = bLevel, .bIdleOutEn = bHoldLevel}
   };
   gpsRMT->asChConf[eChannel] = rChConf;
+  // set memory ownership of RMT RAM blocks
+  SRmtChConf1Reg sRdMemCfg = {.raw = -1};
+  sRdMemCfg.bMemOwner = 0;
+  for (int i = 0; i < RMTMORSE_MEM_BLOCKS; ++i) {
+    gpsRMT->asChConf[(eChannel + i) % RMT_CHANNEL_NUM].r1.raw &= sRdMemCfg.raw;
+  }
 
   gpsRMT->arTxLim[eChannel].u9Val = RMT_TXLIM; // half of the memory block
   gpsRMT->arInt[RMT_INT_ENA] =

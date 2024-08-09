@@ -36,6 +36,6 @@ void chargen_reset(SCharGenState *psState) {
   psState->pcCur = psState->pcBegin;
 }
 
-bool chargen_end(SCharGenState *psState) {
+bool chargen_end(const SCharGenState *psState) {
   return psState->pcCur == psState->pcEnd;
 }

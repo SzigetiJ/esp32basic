@@ -218,7 +218,7 @@ extern "C" {
     gpsRMT->asChConf[eChannel].r1.raw |= rConf1.raw;
   }
 
-#undef RMT_CHANNEL_NUM
+  //#undef RMT_CHANNEL_NUM
   //#undef RMT_RAM_BLOCK_SIZE
 
 #ifdef __cplusplus

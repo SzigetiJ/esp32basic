@@ -10,11 +10,20 @@
 // ============== Internal function declarations ==============
 static uint32_t _pairgen_next(U16Generator pfGen, UniRel pfEnd, void *pvParam);
 static uint16_t _stretchgen_next(void *pvState);
-static bool _stretchgen_end(void *pvState);
+static bool _stretchgen_end(const void *pvState);
 
 
 // ============== Internal functions ==============
 
+/**
+ * Makes a uint32_t value from two uint16_t values taken from pfGen.
+ * @param pfGen Underlying source: the function generating the uint16_t values.
+ * @param pfEnd End of sequence indicator function of the uint16_t source.
+ * @param pvParam Parameter to pass to pfGen and pfEnd functions.
+ * @return Bits 0..15 contain the first value received from the generator,
+ * bits 16.,31 depend on pfEnd: if end of sequence is true after the first value is read,
+ * 0; otherwise these bits contain the second value received from the underlying generator.
+ */
 static uint32_t _pairgen_next(U16Generator pfGen, UniRel pfEnd, void *pvParam) {
   uint16_t au16Val[] = {0, 0};
   uint32_t *pu32Val = (uint32_t*) au16Val;
@@ -41,8 +50,8 @@ static uint16_t _stretchgen_next(void *pvParam) {
   return u16Ret;
 }
 
-static bool _stretchgen_end(void *pvParam) {
-  SStretchGenState *psParam = (SStretchGenState*) pvParam;
+static bool _stretchgen_end(const void *pvParam) {
+  const SStretchGenState *psParam = (const SStretchGenState*) pvParam;
   return psParam->fGenEnd(psParam->pvGenParam) && (psParam->u32OutQueue == 0);
 }
 
@@ -72,9 +81,10 @@ bool rmtutils_feed_tx(ERmtChannel eChannel, uint16_t *pu16MemPos, uint16_t u16Le
   uint8_t u8Blocks = gpsRMT->asChConf[eChannel].r0.u4MemSize;
   uint16_t u16Offset = 0;
   bool bRet = false;
+
   for (; u16Offset < u16Len && !bRet; ++u16Offset) {
     uint32_t u32Tmp = pfEnd(pvGen) ? 0 : _pairgen_next(pfGen, pfEnd, pvGen);
-    if (u32Tmp == 0) {
+    if ((u32Tmp & RMT_ENTRYMAX) == 0 || (u32Tmp & (RMT_ENTRYMAX << 16)) == 0) {
       bRet = true;
     }
     prMemBase0[(((*pu16MemPos + u16Offset) % (u8Blocks * RMT_RAM_BLOCK_SIZE)) + u32MemChOffset) % (8 * RMT_RAM_BLOCK_SIZE)] = u32Tmp;
