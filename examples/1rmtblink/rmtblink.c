@@ -15,8 +15,6 @@
 #include "rmt.h"
 #include "defines.h"
 #include "romfunctions.h"
-#include "print.h"
-#include "uart.h"
 #include "iomux.h"
 #include "dport.h"
 
@@ -37,7 +35,7 @@
 
 // ================ Local function declarations =================
 static void _rmt_init_controller();
-static void _rmt_init_channel(E_RMT_CHANNEL eChannel, uint8_t u8Pin, bool bLevel, bool bHoldLevel);
+static void _rmt_init_channel(ERmtChannel eChannel, uint8_t u8Pin, bool bLevel, bool bHoldLevel);
 static void _rmtblink_init();
 static void _rmtblink_cycle(uint64_t u64Ticks);
 
@@ -66,11 +64,11 @@ static void _rmt_init_controller() {
   dport_regs()->PERIP_RST_EN |= 1 << DPORT_PERIP_BIT_RMT;
   dport_regs()->PERIP_RST_EN &= ~(1 << DPORT_PERIP_BIT_RMT);
 
-  S_RMT_APB_CONF_REG rApbConf = {.bMemAccessEn = 1, .bMemTxWrapEn = 1}; // direct RMT RAM access (not using FIFO), mem wrap-around (not used)
+  SRmtApbConfReg rApbConf = {.bMemAccessEn = 1, .bMemTxWrapEn = 1}; // direct RMT RAM access (not using FIFO), mem wrap-around (not used)
   gpsRMT->rApb = rApbConf;
 }
 
-static void _rmt_init_channel(E_RMT_CHANNEL eChannel, uint8_t u8Pin, bool bLevel, bool bHoldLevel) {
+static void _rmt_init_channel(ERmtChannel eChannel, uint8_t u8Pin, bool bLevel, bool bHoldLevel) {
   // gpio & iomux
   bLevel ? gpio_pin_out_on(u8Pin) : gpio_pin_out_off(u8Pin); // set GPIO level when not bound to RMT (optional)
 
@@ -82,7 +80,7 @@ static void _rmt_init_channel(E_RMT_CHANNEL eChannel, uint8_t u8Pin, bool bLevel
   gpio_matrix_in(u8Pin, rmt_in_signal(eChannel), 0);
 
   // rmt channel config
-  S_RMT_CHCONF rChConf = {
+  SRmtChConf rChConf = {
     .r0 =
     {.u8DivCnt = RMT_DIVISOR, .u4MemSize = 1},
     .r1 =

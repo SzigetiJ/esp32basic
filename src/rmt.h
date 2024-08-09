@@ -1,6 +1,13 @@
+/*
+ * Copyright 2024 SZIGETI János
+ *
+ * This file is part of Bilis ESP32 Basic, which is released under GNU General Public License.version 3.
+ * See LICENSE or <https://www.gnu.org/licenses/> for full license details.
+ */
 #ifndef RMT_H
 #define RMT_H
 
+#include <stdbool.h>
 #include "esp32types.h"
 
 
@@ -8,25 +15,29 @@
 extern "C" {
 #endif
 
+  // ============== Defines ==============
 #define RMT_SIGNAL1 (0x8000)
 #define RMT_SIGNAL0 (0x0000)
+#define RMT_ENTRYMAX (0x7FFF)
 
 #define RMT_CHANNEL_NUM     8U
 #define RMT_RAM_BLOCK_SIZE  64U
 
+  // ============== Types ==============
+
   typedef enum {
     RMT_INT_RAW = 0, ///< Raw interrupt status (RO)
     RMT_INT_ST = 1, ///< Masked interrupt status (RO)
-    RMT_INT_ENA = 2, ///< Setting a bit enables the given interrupt (RW)
-    RMT_INT_CLR = 3 ///< Setting a bit disables the given interrupt (WO)
-  } E_RMT_INT_REG; ///< Types of interrupt registers.
+    RMT_INT_ENA = 2, ///< Interrupts with active bits are enabled (and shown in masked interrupt status), interrupts with inactive bits are disabled (RW)
+    RMT_INT_CLR = 3 ///< Setting a bit clears the given interrupt (WO)
+  } ERmtIntReg; ///< Types of interrupt registers.
 
   typedef enum {
     RMT_INT_TXEND = 0, ///< TX is done.
     RMT_INT_RXEND = 1, ///< RX is done.
     RMT_INT_ERR = 2, ///< An error occured.
     RMT_INT_TXTHRES = 3 ///< TX threshold is reached.
-  } E_RMT_INT_TYPE; ///< Types of RMT interrupt.
+  } ERmtIntType; ///< Types of RMT interrupt.
 
   typedef enum {
     RMT_CH0 = 0,
@@ -37,7 +48,7 @@ extern "C" {
     RMT_CH5,
     RMT_CH6,
     RMT_CH7
-  } E_RMT_CHANNEL;
+  } ERmtChannel;
 
   typedef volatile union {
 
@@ -53,7 +64,7 @@ extern "C" {
       uint32_t rsvd31 : 1;
     };
     volatile uint32_t raw;
-  } S_RMT_CHCONF0_REG;
+  } SRmtChConf0Reg;
 
   typedef volatile union {
 
@@ -76,17 +87,17 @@ extern "C" {
       uint32_t rsvd20 : 12; ///< Reserved
     };
     volatile uint32_t raw;
-  } S_RMT_CHCONF1_REG;
+  } SRmtChConf1Reg;
 
   typedef struct {
-    S_RMT_CHCONF0_REG r0;
-    S_RMT_CHCONF1_REG r1;
-  } S_RMT_CHCONF;
+    SRmtChConf0Reg r0;
+    SRmtChConf1Reg r1;
+  } SRmtChConf;
 
   typedef struct {
     uint32_t u16Low : 16; ///< If carrier is enabled, this value defines the length of low level in the carrier wave (APB/REF ticks).
     uint32_t u16High : 16; ///< If carrier is enabled, this value defines the length of high level in the carrier wave (APB/REF ticks).
-  } S_RMT_CHCARRIER_DUTY_REG;
+  } SRmtChCarrierDutyReg;
 
   typedef union {
 
@@ -95,7 +106,7 @@ extern "C" {
       uint32_t rsvd9 : 23;
     };
     volatile uint32_t raw;
-  } S_RMT_CH_TX_LIM_REG;
+  } SRmtChTxLimReg;
 
   typedef union {
 
@@ -105,42 +116,45 @@ extern "C" {
       uint32_t rsvd2 : 30;
     };
     volatile uint32_t raw;
-  } S_RMT_APB_CONF_REG;
+  } SRmtApbConfReg;
 
   // ---------------- undocumented register types -------------------
 
-  typedef Reg S_RMT_STATUS_REG;
+  typedef Reg SRmtStatusReg;
 
   typedef struct {
     uint16_t u16TxOffset;
     uint16_t u16RxOffset;
-  } S_RMT_FIFO_OFFSET_REG;
+  } SRmtFifoOffsetReg;
 
   typedef struct {
     Reg arFifo[8]; ///< Undocumented registers. Probably RAM access (R/W) as FIFO for each channel.
-    S_RMT_CHCONF asChConf[RMT_CHANNEL_NUM];
-    S_RMT_STATUS_REG asStatus[RMT_CHANNEL_NUM];
-    S_RMT_FIFO_OFFSET_REG asFifoOffset[RMT_CHANNEL_NUM];
+    SRmtChConf asChConf[RMT_CHANNEL_NUM];
+    SRmtStatusReg asStatus[RMT_CHANNEL_NUM];
+    SRmtFifoOffsetReg asFifoOffset[RMT_CHANNEL_NUM];
     Reg arInt[4];
-    S_RMT_CHCARRIER_DUTY_REG arCarrierDuty[RMT_CHANNEL_NUM];
-    S_RMT_CH_TX_LIM_REG arTxLim[RMT_CHANNEL_NUM];
-    S_RMT_APB_CONF_REG rApb;
+    SRmtChCarrierDutyReg arCarrierDuty[RMT_CHANNEL_NUM];
+    SRmtChTxLimReg arTxLim[RMT_CHANNEL_NUM];
+    SRmtApbConfReg rApb;
     Reg rsvd61;
     Reg rsvd62;
     Reg rVersion;
   } RMT_Type;
 
+  // ============== Values / References ==============
   extern RMT_Type gsRMT;
   extern Reg grRMTRAM[RMT_CHANNEL_NUM * RMT_RAM_BLOCK_SIZE];
   static RMT_Type *gpsRMT = &gsRMT;
   static RegAddr gpsRMTRAM = (RegAddr) grRMTRAM;
+
+  // ============== Inline interface functions ==============
 
   /**
    * Tells the RMT RAM base address of an RMT channel.
    * @param eChannel Identifies the RMT channel.
    * @return Base address of the RMT RAM of the given channel.
    */
-  static inline RegAddr rmt_ram_block(E_RMT_CHANNEL eChannel) {
+  static inline RegAddr rmt_ram_block(ERmtChannel eChannel) {
     return gpsRMTRAM + RMT_RAM_BLOCK_SIZE * eChannel;
   }
 
@@ -150,7 +164,7 @@ extern "C" {
    * @param eType Type of the RMT interrupt.
    * @return Bit position in the interrupt registers.
    */
-  static inline uint8_t rmt_int_idx(E_RMT_CHANNEL eChannel, E_RMT_INT_TYPE eType) {
+  static inline uint8_t rmt_int_idx(ERmtChannel eChannel, ERmtIntType eType) {
     return eType == RMT_INT_TXTHRES ?
             24U + (eChannel & 7) :
             3U * (eChannel & 7) + (uint8_t) eType;
@@ -162,7 +176,7 @@ extern "C" {
    * @param eType Type of the RMT interrupt.
    * @return Masking value of the given interrupt.
    */
-  static inline uint32_t rmt_int_bit(E_RMT_CHANNEL eChannel, E_RMT_INT_TYPE eType) {
+  static inline uint32_t rmt_int_bit(ERmtChannel eChannel, ERmtIntType eType) {
     return 1 << rmt_int_idx(eChannel, eType);
   }
 
@@ -171,7 +185,7 @@ extern "C" {
    * @param eChannel Identifies the RMT channel.
    * @return GPIO output signal number.
    */
-  static inline uint8_t rmt_out_signal(E_RMT_CHANNEL eChannel) {
+  static inline uint8_t rmt_out_signal(ERmtChannel eChannel) {
     return 87 + eChannel;
   }
 
@@ -180,7 +194,7 @@ extern "C" {
    * @param eChannel Identifies the RMT channel.
    * @return GPIO input signal number.
    */
-  static inline uint8_t rmt_in_signal(E_RMT_CHANNEL eChannel) {
+  static inline uint8_t rmt_in_signal(ERmtChannel eChannel) {
     return 83 + eChannel;
   }
 
@@ -189,8 +203,8 @@ extern "C" {
    * @param eChannel Identifies the channel.
    * @param bMemRdRst Should the controller reset its memory read address for the channel.
    */
-  static inline void rmt_start_tx(E_RMT_CHANNEL eChannel, bool bMemRdRst) {
-    S_RMT_CHCONF1_REG rConf1 = {.bTxStart = 1, .bMemRdRst = bMemRdRst};
+  static inline void rmt_start_tx(ERmtChannel eChannel, bool bMemRdRst) {
+    SRmtChConf1Reg rConf1 = {.bTxStart = 1, .bMemRdRst = bMemRdRst};
     gpsRMT->asChConf[eChannel].r1.raw |= rConf1.raw;
   }
 
@@ -199,13 +213,13 @@ extern "C" {
    * @param eChannel Identifies the channel.
    * @param bMemWrRst Should the controller reset its memory write address for the channel.
    */
-  static inline void rmt_start_rx(E_RMT_CHANNEL eChannel, bool bMemWrRst) {
-    S_RMT_CHCONF1_REG rConf1 = {.bRxEn = 1, .bMemWrRst = bMemWrRst};
+  static inline void rmt_start_rx(ERmtChannel eChannel, bool bMemWrRst) {
+    SRmtChConf1Reg rConf1 = {.bRxEn = 1, .bMemWrRst = bMemWrRst};
     gpsRMT->asChConf[eChannel].r1.raw |= rConf1.raw;
   }
 
 #undef RMT_CHANNEL_NUM
-#undef RMT_RAM_BLOCK_SIZE
+  //#undef RMT_RAM_BLOCK_SIZE
 
 #ifdef __cplusplus
 }

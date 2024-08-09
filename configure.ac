@@ -15,6 +15,7 @@ AC_CONFIG_SUBDIRS([examples/0blink])
 AC_CONFIG_SUBDIRS([examples/0hello])
 AC_CONFIG_SUBDIRS([examples/0ledctrl])
 AC_CONFIG_SUBDIRS([examples/1rmtblink])
+AC_CONFIG_SUBDIRS([examples/1rmtmorse])
 AC_CONFIG_SUBDIRS([examples/3prog1])
 
 AC_CONFIG_FILES([
@@ -26,6 +27,7 @@ AC_CONFIG_FILES([
   examples/0hello/Makefile
   examples/0ledctrl/Makefile
   examples/1rmtblink/Makefile
+  examples/1rmtmorse/Makefile
   examples/3prog1/Makefile
 ])
 
