@@ -76,20 +76,25 @@ bool rmtutils_feed_tx_stretched(ERmtChannel eChannel, uint16_t *pu16MemPos, uint
 }
 
 bool rmtutils_feed_tx(ERmtChannel eChannel, uint16_t *pu16MemPos, uint16_t u16Len, U16Generator pfGen, UniRel pfEnd, void *pvGen) {
-  RegAddr prMemBase0 = rmt_ram_block(0);
-  uint32_t u32MemChOffset = eChannel * RMT_RAM_BLOCK_SIZE;
+  RegAddr prMemBase0 = rmt_ram_block(0);  // base mem block of channel#0
+  uint32_t u32MemBaseNOffset = eChannel * RMT_RAM_BLOCK_SIZE; // the base mem block of eChannel is shifted from prMemBase0 with this amount.
   uint8_t u8Blocks = gpsRMT->asChConf[eChannel].r0.u4MemSize;
-  uint16_t u16Offset = 0;
+  uint16_t u16Written = 0;  // counter for written registers
   bool bRet = false;
 
-  for (; u16Offset < u16Len && !bRet; ++u16Offset) {
-    uint32_t u32Tmp = pfEnd(pvGen) ? 0 : _pairgen_next(pfGen, pfEnd, pvGen);
-    if ((u32Tmp & RMT_ENTRYMAX) == 0 || (u32Tmp & (RMT_ENTRYMAX << 16)) == 0) {
+  for (; u16Written < u16Len && !bRet; ++u16Written) {
+    uint32_t u32RegValue = pfEnd(pvGen) ? 0 : _pairgen_next(pfGen, pfEnd, pvGen); // entry-pair to write to the RMT RAM register
+    uint32_t u32RelRamIdx = (*pu16MemPos + u16Written) % (u8Blocks * RMT_RAM_BLOCK_SIZE); // ram idx relative to eChannel's mem base
+    uint32_t u32AbsRamIdx = (u32RelRamIdx + u32MemBaseNOffset) % (RMT_CHANNEL_NUM * RMT_RAM_BLOCK_SIZE);  // absolute ram idx in RMT RAM
+
+    prMemBase0[u32AbsRamIdx] = u32RegValue;
+
+    // check if tx termination value was written
+    if ((u32RegValue & RMT_ENTRYMAX) == 0 || (u32RegValue & (RMT_ENTRYMAX << 16)) == 0) {
       bRet = true;
     }
-    prMemBase0[(((*pu16MemPos + u16Offset) % (u8Blocks * RMT_RAM_BLOCK_SIZE)) + u32MemChOffset) % (8 * RMT_RAM_BLOCK_SIZE)] = u32Tmp;
   }
-  *pu16MemPos += u16Offset;
+  *pu16MemPos += u16Written;
   *pu16MemPos %= (u8Blocks * RMT_RAM_BLOCK_SIZE);
   return bRet;
 }

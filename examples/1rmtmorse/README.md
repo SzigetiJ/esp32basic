@@ -73,3 +73,8 @@ Solve this problem somehow.
 
 4. Instead of static text message, take the source text message from UART0 console input.
 (transition start should be triggered by newline character).
+
+5. Replace D1 with a speaker and make audio output.
+To achieve this you have to modulate the RMT pulses with a _carrier_ wave.
+The setup of the carrier is already implemented, you just have to switch on (set `CARRIER_EN` to `1`).
+What you still can do is playing around with the carrier frequency / duty cycle.

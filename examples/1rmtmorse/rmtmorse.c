@@ -29,24 +29,28 @@
 #define MESSAGE "Hello, World!  "
 
 // #1: Timings
-#define MORSE_DIT_MS 200U
-#define MORSE_DAH_MS 600U
-#define MORSE_SSPACE_MS 300U    ///< Symbol space
-#define MORSE_LSPACE_MS 600U    ///< Letter space
-#define MORSE_WSPACE_MS 1200U    ///< Word space
+#define MORSE_DIT_MS       200U
+#define MORSE_DAH_MS       600U
+#define MORSE_SSPACE_MS    300U    ///< Symbol space
+#define MORSE_LSPACE_MS    600U    ///< Letter space
+#define MORSE_WSPACE_MS   1200U    ///< Word space
 
-#define UPDATE_PERIOD_MS  500U
+#define UPDATE_PERIOD_MS   200U
 #define RMT_DIVISOR         80U       ///< RMT TICK freq is 80MHz / RMT_DIVISOR (80 -> 1MHz, 40 -> 2MHz, 30 -> 2.66MHz)
 
+#define CARRIER_EN           0U
+#define CARRIER_HI_TCK   40000U
+#define CARRIER_LO_TCK   40000U
+
 // #2: Channels / wires / addresses
-#define RMTMORSE_GPIO       2U
-#define RMTMORSE_CH         RMT_CH0
+#define RMTMORSE_GPIO        2U
+#define RMTMORSE_CH     RMT_CH0
 //#define RMTINT_CH           23U // not used yet
 
 // #3: Sizes
-#define RMTMORSE_MEM_BLOCKS 1
-#define RMT_TXLIM ((RMTMORSE_MEM_BLOCKS * RMT_RAM_BLOCK_SIZE)/2)
-#define RMT_FEED0SIZE (2 * RMT_TXLIM)
+#define RMTMORSE_MEM_BLOCKS  1U
+#define RMT_TXLIM        ((RMTMORSE_MEM_BLOCKS * RMT_RAM_BLOCK_SIZE)/2)
+#define RMT_FEED0SIZE    (2 * RMT_TXLIM)
 
 // ============= Local types ===============
 
@@ -140,11 +144,17 @@ static void _rmt_init_channel(ERmtChannel eChannel, uint8_t u8Pin, bool bLevel, 
   // rmt channel config
   SRmtChConf rChConf = {
     .r0 =
-    {.u8DivCnt = RMT_DIVISOR, .u4MemSize = RMTMORSE_MEM_BLOCKS},
+    {.u8DivCnt = RMT_DIVISOR, .u4MemSize = RMTMORSE_MEM_BLOCKS, .bCarrierEn = CARRIER_EN, .bCarrierOutLvl = 1},
     .r1 =
     {.bRefAlwaysOn = 1, .bRefCntRst = 1, .bMemRdRst = 1, .bIdleOutLvl = bLevel, .bIdleOutEn = bHoldLevel}
   };
   gpsRMT->asChConf[eChannel] = rChConf;
+
+  if (CARRIER_EN) {
+    SRmtChCarrierDutyReg rChCarr = {.u16High = CARRIER_HI_TCK, .u16Low = CARRIER_LO_TCK};
+    gpsRMT->arCarrierDuty[eChannel] = rChCarr;
+  }
+
   // set memory ownership of RMT RAM blocks
   SRmtChConf1Reg sRdMemCfg = {.raw = -1};
   sRdMemCfg.bMemOwner = 0;
@@ -203,6 +213,7 @@ static void _rmtmorse_cycle(uint64_t u64Ticks) {
       gpsRMT->arInt[RMT_INT_CLR] = rmt_int_bit(RMTMORSE_CH, RMT_INT_TXEND);
       gsUART0.FIFO = '\n';
       mphgen_reset(&sMphGenState);
+      u16RmtMemPos = 0U;
       bFeedReady = rmtutils_feed_tx_stretched(RMTMORSE_CH, &u16RmtMemPos, RMT_FEED0SIZE, (void*) &sSGenState);
       rmt_start_tx(RMTMORSE_CH, true);
     }

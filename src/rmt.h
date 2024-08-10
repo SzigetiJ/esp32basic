@@ -94,9 +94,13 @@ extern "C" {
     SRmtChConf1Reg r1;
   } SRmtChConf;
 
-  typedef struct {
-    uint32_t u16Low : 16; ///< If carrier is enabled, this value defines the length of low level in the carrier wave (APB/REF ticks).
-    uint32_t u16High : 16; ///< If carrier is enabled, this value defines the length of high level in the carrier wave (APB/REF ticks).
+  typedef volatile union {
+
+    volatile struct {
+      uint32_t u16Low : 16; ///< If carrier is enabled, this value defines the length of low level in the carrier wave (APB/REF ticks).
+      uint32_t u16High : 16; ///< If carrier is enabled, this value defines the length of high level in the carrier wave (APB/REF ticks).
+    };
+    volatile uint32_t raw;
   } SRmtChCarrierDutyReg;
 
   typedef union {
@@ -120,11 +124,22 @@ extern "C" {
 
   // ---------------- undocumented register types -------------------
 
-  typedef Reg SRmtStatusReg;
+  typedef union {
+
+    volatile struct {
+      uint32_t rsvd0 : 12; ///< ??, Probably RX status
+      uint32_t u9TxIdx : 9; ///< TX mem idx
+      uint32_t bTxWrapped : 1; ///< TX memory pointer is below the channel's memory block (mem idx offset is -512)
+      uint32_t rsvd22 : 2;
+      uint32_t bTxState : 1; ///< TX process is ongoing
+      uint32_t rsvd25 : 7;
+    };
+    volatile uint32_t raw;
+  } SRmtStatusReg;
 
   typedef struct {
-    uint16_t u16TxOffset;
-    uint16_t u16RxOffset;
+    uint32_t u16TxOffset : 16;
+    uint32_t u16RxOffset : 16;
   } SRmtFifoOffsetReg;
 
   typedef struct {
