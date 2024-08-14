@@ -45,6 +45,16 @@ extern "C" {
   } SStretchGenState;
 
   // ============== Interface functions ==============
+  /**
+   * Copies an array of uint32_t values into RMT RAM registers.
+   * @param eChannel Identifies the RMT channel.
+   * @param u8RamBlocks Number of RAM block the RMT channel owns.
+   * @param u32Offset Relative index (without wrap-around) of the first register to write (between 0 and u8RamBlocks * RAM_BLOCK_SIZE).
+   * @param pu32Src Address of source array.
+   * @param u32Len Length of source array.
+   * @return Relative index of the next register to write to (similar to end pointer).
+   */
+  uint32_t rmtutils_copytoram(ERmtChannel eChannel, uint8_t u8RamBlocks, uint32_t u32Offset, uint32_t *pu32Src, uint32_t u32Len);
 
   SStretchGenState rmtutils_init_stretchgenstate(uint32_t u32Multiplier, uint32_t u32Divisor, U16Generator fGen,
           UniRel fGenEnd, void *pvGenParam);
