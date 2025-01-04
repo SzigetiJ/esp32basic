@@ -10,9 +10,7 @@ LDADD = $(top_builddir)/src/libesp32basic.a
 bin_PROGRAMS = \
  rmtws2812.elf
 
-rmtws2812_elf_SOURCES = bitgen.c rmtws2812.c
-
-#rmtws2812_HEADERS = chargen.h
+rmtws2812_elf_SOURCES = rmtws2812.c
 
 CLEANFILES = \
  rmtws2812.bin

@@ -93,7 +93,7 @@ static uint8_t _char_to_code(char cVal) {
  * @param psState Internal state.
  */
 static inline void _load_next_char(SMphGenState *psState) {
-  psState->u8SymCur = _char_to_code(chargen_next(psState->psChGen));
+  psState->u8SymCur = _char_to_code(bytegen_next(psState->psChGen));
   psState->u8BitLen = _code_len(psState->u8SymCur);
   psState->u8BitIdx = 0;
 }
@@ -111,7 +111,7 @@ static inline EMorsePhase _ditdah_next(SMphGenState *psState) {
 
 // ============== Interface functions ==============
 
-SMphGenState mphgen_init(SCharGenState *psChGen, bool bWithSSpace) {
+SMphGenState mphgen_init(SByteGenState *psChGen, bool bWithSSpace) {
   SMphGenState sRet = {.psChGen = psChGen, .u8SymCur = 0, .u8BitIdx = 0, .eLastPhase = MORSE_NOP, .bWithSSpace = bWithSSpace};
   return sRet;
 }
@@ -146,7 +146,7 @@ EMorsePhase mphgen_next(SMphGenState *psState) {
 }
 
 void mphgen_reset(SMphGenState *psMphGen) {
-  chargen_reset(psMphGen->psChGen);
+  bytegen_reset(psMphGen->psChGen);
   psMphGen->u8SymCur = 0;
   psMphGen->u8BitLen = 0;
   psMphGen->u8BitIdx = 0;
@@ -154,6 +154,6 @@ void mphgen_reset(SMphGenState *psMphGen) {
 }
 
 bool mphgen_end(const SMphGenState *psState) {
-  return chargen_end(psState->psChGen) &&
+  return bytegen_end(psState->psChGen) &&
           (psState->u8BitIdx == psState->u8BitLen);
 }

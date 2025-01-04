@@ -10,9 +10,7 @@ LDADD = $(top_builddir)/src/libesp32basic.a
 bin_PROGRAMS = \
  rmtmorse.elf
 
-rmtmorse_elf_SOURCES = chargen.c mphgen.c rmtmorse.c
-
-#rmtmorse_HEADERS = chargen.h
+rmtmorse_elf_SOURCES = mphgen.c rmtmorse.c
 
 CLEANFILES = \
  rmtmorse.bin

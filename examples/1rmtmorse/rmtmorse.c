@@ -20,7 +20,6 @@
 #include "iomux.h"
 #include "dport.h"
 #include "typeaux.h"
-#include "chargen.h"
 #include "mphgen.h"
 #include "utils/rmtutils.h"
 
@@ -180,7 +179,7 @@ static void _rmtmorse_init() {
 static void _rmtmorse_cycle(uint64_t u64Ticks) {
   static uint64_t u64NextTick = 0;
 
-  static SCharGenState sCharGenState;
+  static SByteGenState sByteGenState;
   static SMphGenState sMphGenState;
   static SStretchGenState sSGenState;
   static bool bFirstRun = true;
@@ -188,8 +187,8 @@ static void _rmtmorse_cycle(uint64_t u64Ticks) {
   static uint16_t u16RmtMemPos = 0;
 
   if (bFirstRun) {
-    sCharGenState = chargen_init_nowrap(acMessage, ARRAY_SIZE(acMessage) - 1, '?');
-    sMphGenState = mphgen_init(&sCharGenState, true);
+    sByteGenState = bytegen_init((uint8_t*)acMessage, ARRAY_SIZE(acMessage) - 1);
+    sMphGenState = mphgen_init(&sByteGenState, true);
     sSGenState = rmtutils_init_stretchgenstate(
             HZ2APBTICKS(1000) / RMT_DIVISOR, 1,
             _mph2entry_next, _mph2entry_end, &sMphGenState);

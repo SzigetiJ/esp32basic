@@ -22,7 +22,7 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
-#include "chargen.h"
+#include "utils/generators.h"
 
   typedef enum {
     MORSE_DIT = 0,
@@ -34,7 +34,7 @@ extern "C" {
   } EMorsePhase;
 
   typedef struct {
-    SCharGenState *psChGen; ///< Internal state of the source / input generator.
+    SByteGenState *psChGen; ///< Internal state of the source / input generator.
     uint8_t u8SymCur; ///< Current symbol.
     uint8_t u8BitLen; ///< Bitlength of current symbol.
     uint8_t u8BitIdx; ///< Bit position of phase within the current symbol.
@@ -48,7 +48,7 @@ extern "C" {
    * @param bWithSSpace Initial value of bWithSSpace configuration attribute.
    * @return Initialized state descriptor.
    */
-  SMphGenState mphgen_init(SCharGenState *psChGen, bool bWithSSpace);
+  SMphGenState mphgen_init(SByteGenState *psChGen, bool bWithSSpace);
 
   /**
    * Generates next Morse phase.

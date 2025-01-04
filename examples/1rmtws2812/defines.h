@@ -16,15 +16,17 @@ extern "C" {
 #define APB_FREQ_HZ         80000000U               // 80 MHz
 
   // variables
-#define TIM0_0_DIVISOR      2U
+#define TIM0_0_DIVISOR      2U                      // cannot be 1
 #define START_APP_CPU       0U
-#define SCHEDULE_FREQ_HZ    1000U                  // 10KHz
+#define SCHEDULE_FREQ_HZ    1000U                   // 1KHz
 
   // derived invariants
 #define CLK_FREQ_HZ         (APB_FREQ_HZ / TIM0_0_DIVISOR)  // 40 MHz
 #define TICKS_PER_MS        (CLK_FREQ_HZ / 1000U)          // 40000
 #define TICKS_PER_US        (CLK_FREQ_HZ / 1000000U)       // 40
+#define NS_PER_TICKS        (1000000000 / CLK_FREQ_HZ)
 
+#define TICKS2NS(X)         ((X) * NS_PER_TICKS)
 #define MS2TICKS(X)         ((X) * TICKS_PER_MS)
 #define HZ2APBTICKS(X)     (APB_FREQ_HZ / (X))
 
