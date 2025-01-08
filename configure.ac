@@ -1,12 +1,16 @@
 AC_PREREQ([2.69])
 AC_INIT([esp32basic],[1.0.0])
 AM_INIT_AUTOMAKE
-: ${CFLAGS="-g -Os -Wall"}
+: ${CFLAGS="-g -Os -Wall -nostdlib -mlongcalls" LDFLAGS="-specs=nano.specs"}
 AC_PROG_CC
 AC_PROG_CC_STDC
 AC_DEFUN([AC_PROG_AR], [AC_CHECK_TOOL(AR, ar, :)])
 AC_PROG_AR
 AC_PROG_RANLIB
+
+AC_ARG_WITH([binaries], AS_HELP_STRING([--without-binaries], [Do not generate .bin images (esptool.py required).]))
+AM_CONDITIONAL([WITH_BINARIES], [test x$with_binaries != xno])
+AM_COND_IF([WITH_BINARIES],[ AC_MSG_NOTICE([generate .bin images]) ])
 
 AC_CONFIG_SUBDIRS([src])
 AC_CONFIG_SUBDIRS([modules])

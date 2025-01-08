@@ -1,4 +1,4 @@
-AM_CFLAGS  = -nostdlib -mlongcalls -std=c11 -flto
+AM_CFLAGS  = -nostdlib -std=c11 -flto
 
 libesp32basic_a_AR=$(AR) rcs
 

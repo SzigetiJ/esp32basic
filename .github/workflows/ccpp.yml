@@ -14,10 +14,10 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: configure
-      run: aclocal && autoconf && automake --add-missing && ./configure
+      run: aclocal && autoconf && automake --add-missing && ./configure --host='' 'CFLAGS=-Wall' 'LDFLAGS=' --without-binaries
     - name: make
       run: make
     - name: make check
       run: make check
     - name: make distcheck
-      run: make distcheck
+      run: DISTCHECK_CONFIGURE_FLAGS="--host= CFLAGS='' LDFLAGS='' --without-binaries" make distcheck

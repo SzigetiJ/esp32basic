@@ -7,16 +7,21 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#ifdef __XTENSA__
+#include <sys/reent.h>
+#else
+#define _impure_ptr NULL
+#define _vsnprintf_r(X,Y1,Y2,Y3,Y4) vsnprintf(Y1,Y2,Y3,Y4)
+#endif
+#include <stdlib.h>
 #include "uartutils.h"
 #include "typeaux.h"
-
-extern struct _reent *_global_impure_ptr __ATTRIBUTE_IMPURE_PTR__;
 
 int uart_printf(UART_Type *psUART, const char *pcFormat, ...) {
   char acBuf[100];
   va_list va;
   va_start(va, pcFormat);
-  int iLen = _vsnprintf_r(_global_impure_ptr, acBuf, ARRAY_SIZE(acBuf), pcFormat, va);
+  int iLen = _vsnprintf_r(_impure_ptr, acBuf, ARRAY_SIZE(acBuf), pcFormat, va);
   va_end(va);
   for (int i = 0; i < iLen; ++i) {
     psUART->FIFO = acBuf[i];

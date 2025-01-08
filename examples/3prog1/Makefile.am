@@ -6,14 +6,16 @@ AM_LDFLAGS += -T $(top_srcdir)/ld/esp32.rom.ld \
 
 noinst_HEADERS = defines.h
 
-AM_CFLAGS  = -nostdlib -mlongcalls -std=c11 -flto
+AM_CFLAGS  = -std=c11 -flto
 AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/modules
 LDADD = $(top_builddir)/src/libesp32basic.a $(top_builddir)/modules/libesp32modules.a
 
 bin_PROGRAMS = \
  prog.elf
 
+if WITH_BINARIES
 CLEANFILES = \
  prog.bin
+endif
 
 BUILT_SOURCES = $(CLEANFILES)

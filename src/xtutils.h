@@ -16,7 +16,9 @@ extern "C" {
 #define XCHAL_HAVE_S32C1I 1
 #define SOC_CPU_CORES_NUM 2
 
-    /* Taken from https://github.com/espressif/esp-idf/blob/master/components/xtensa/include/xt_utils.h
+#ifdef __XTENSA__
+
+  /* Taken from https://github.com/espressif/esp-idf/blob/master/components/xtensa/include/xt_utils.h
    * which is released under SPDX-License-Identifier: Apache-2.0 */
   FORCE_INLINE_ATTR bool xt_utils_compare_and_set(volatile uint32_t *addr, uint32_t compare_value, uint32_t new_value) {
 #if XCHAL_HAVE_S32C1I
@@ -76,7 +78,15 @@ extern "C" {
 #endif // SOC_CPU_CORES_NUM > 1
   }
 
-
+#else
+  FORCE_INLINE_ATTR bool xt_utils_compare_and_set(volatile uint32_t *addr, uint32_t compare_value, uint32_t new_value) {
+    return true;
+  }
+  FORCE_INLINE_ATTR __attribute__ ((pure)) uint32_t xt_utils_get_core_id(void) {
+    return 0U;
+  }
+#endif // __XTENSA__
+  
 #ifdef __cplusplus
 }
 #endif
