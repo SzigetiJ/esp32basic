@@ -1,6 +1,7 @@
 ## Bilis ESP32 Basic
 
 ![GitHub](https://img.shields.io/github/license/SzigetiJ/esp32basic)
+![C/C++ CI](https://github.com/SzigetiJ/esp32basic/workflows/C/C++%20CI/badge.svg)
 [![GitHub code size](https://img.shields.io/github/languages/code-size/SzigetiJ/esp32basic)](https://github.com/SzigetiJ/esp32basic)
 ![GitHub repo size](https://img.shields.io/github/repo-size/SzigetiJ/esp32basic)
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/y/SzigetiJ/esp32basic)
