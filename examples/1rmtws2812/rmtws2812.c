@@ -6,18 +6,16 @@
  */
 #include <stdbool.h>
 #include <inttypes.h>
-#include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-
 #include "dport.h"
 #include "gpio.h"
 #include "main.h"
 #include "rmt.h"
 #include "defines.h"
 #include "romfunctions.h"
-#include "print.h"
 #include "uart.h"
+#include "utils/uartutils.h"
 #include "iomux.h"
 #include "dport.h"
 #include "typeaux.h"
@@ -363,6 +361,7 @@ static void _buf_update_cycle(uint64_t u64Ticks) {
               ++u8Stop1Idx;
             }
           }
+          uart_printf(&gsUART0, "Changing gradient to Color#%u -> Color#%u\n", u8Stop0Idx, u8Stop1Idx);
           _fill_prebuffer(pu8XPreBuf, u8Stop0Idx, u8Stop1Idx);
           bRotateBuffer = false;
         }

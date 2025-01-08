@@ -19,6 +19,7 @@ AC_CONFIG_SUBDIRS([examples/1rmtmorse])
 AC_CONFIG_SUBDIRS([examples/1rmtmusic])
 AC_CONFIG_SUBDIRS([examples/1rmtws2812])
 AC_CONFIG_SUBDIRS([examples/3prog1])
+AC_CONFIG_SUBDIRS([ld])
 
 AC_CONFIG_FILES([
   Makefile
@@ -33,6 +34,7 @@ AC_CONFIG_FILES([
   examples/1rmtmusic/Makefile
   examples/1rmtws2812/Makefile
   examples/3prog1/Makefile
+  ld/Makefile
 ])
 
 AC_OUTPUT

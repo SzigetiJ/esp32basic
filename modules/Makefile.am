@@ -1,6 +1,5 @@
 AM_CPPFLAGS = -I$(top_srcdir)/src
 AM_CFLAGS  = -nostdlib -mlongcalls -std=c11 -flto
-AM_LDFLAGS = -Wl,--gc-sections -T $(top_srcdir)/esp32.ld
 
 libesp32modules_a_AR=$(AR) rcs
 
