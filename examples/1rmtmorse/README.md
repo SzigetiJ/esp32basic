@@ -46,8 +46,8 @@ This entries are derived from input entries of ms resolution using the *stretch 
 * But the *MorsePhase To Entry* generator relies on the *MorsePhase Generator*,
  which produces sequence of Morse-phases out of a text character [mphgen.c](mphgen.c).
 
-* The text charactes are provided by the *Character generator*,
-and this generator is the beginning of the chain [chargen.c](chargen.c).
+* The text charactes are provided by the *Byte generator*,
+and this generator is the beginning of the chain [generators.c](../../src/utils/generators.c).
 It takes a text message as parameter to iterate on.
 
 #### Hardware components

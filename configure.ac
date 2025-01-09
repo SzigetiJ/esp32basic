@@ -1,7 +1,7 @@
 AC_PREREQ([2.69])
 AC_INIT([esp32basic],[1.0.0])
 AM_INIT_AUTOMAKE
-: ${CFLAGS="-g -Os -Wall -nostdlib -mlongcalls" LDFLAGS="-specs=nano.specs"}
+: ${CFLAGS="-g -Os -Wall -nostdlib -mlongcalls"} ${LDFLAGS="-specs=nano.specs"}
 AC_PROG_CC
 AC_PROG_CC_STDC
 AC_DEFUN([AC_PROG_AR], [AC_CHECK_TOOL(AR, ar, :)])

@@ -13,6 +13,7 @@ A simple pattern is being written to the OLED display from left to right.
 * I2C_SLAVE#1: BME280 temperature/pressure/humidity sensor
 * I2C_SLAVE#2: BH1750FVI light sensor
 * I2C_SLAVE#3: 32x128 OLED display
+* [NODE0 .. NODE4]: 5 nodes (maybe on breadboard) as connection nodes of multiple wires.
 
 #### Connections
 

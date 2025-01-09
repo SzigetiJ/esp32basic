@@ -33,11 +33,11 @@ I cannot understand, how and why driving LED strip became a 'get-started' level 
 
 * Install required tools (see Requirements below).
 
-* Set your environment variables (`$PATH` for `xtensa-esp32-elf` and `$IDF_TOOLS_PATH`(?) for `esptool.py`)
+* Set your environment variables (`$PATH` for `xtensa-esp-elf` and `$IDF_TOOLS_PATH`(?) for `esptool.py`)
 
 * Follow [installation instruction](INSTALL) until `make` (`make install` is not reuqired).
 Personally, I always do multiple `VPATH` builds with different configuration settings.
-In order to use the `xtensa-esp32-elf` toolchain, you have to call the configure script with option
+In order to use the `xtensa-esp-elf` toolchain, you have to call the configure script with option
 `--host=xtensa-esp32-elf`.
 
 * Hopefully, the build runs without any error, and
@@ -83,7 +83,7 @@ THis list is supposed to grow longer and longer.
 * Low level peripheral access (via registers).
 * Peripheral controller drivers
   * I2C
-  * _TODO_ RMT
+  * RMT (TODO: example on RX)
   * _TODO_ SPI
   * _TODO_ etc.
 * Device drivers
@@ -97,13 +97,18 @@ THis list is supposed to grow longer and longer.
 * No HAL.
 * Most of the peripheral drivers are not implemented yet.
 * I know it is a big gap, but currently interrupts are not masked in during critical system routines.
-* As far as I know, the list of of ROM functions in the [linker file](esp32.ld) is incomplete.
+* Memory layout and sections defined in the [linker file](ld/esp32.ld) are very simple.
 
 ### Requirements
 
- * [Autotools](https://www.gnu.org/software/automake/), since Bilis ESP32 Basic is an automake project.
- * [xtensa-esp32-elf](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/tools/idf-tools.html) toolchain (compiler, linker, etc.).
+ * [Autotools](https://www.gnu.org/software/automake/), since Bilis ESP32 Basic is an automake project
+(suggested versions: automake:1.16.1, autoconf:2.69).
+
+ * [xtensa-esp-elf](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/tools/idf-tools.html) toolchain (compiler, linker, etc.)
+(suggested versions: 13.2.0).
+
  * [esptool](https://github.com/espressif/esptool) Currently, the flash tools (see scripts) rely on `esptool.py`
+(suggested versions: v4.7.0).
 
 ## Contribution
 
