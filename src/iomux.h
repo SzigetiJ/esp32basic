@@ -54,6 +54,9 @@ extern "C" {
   static inline void iomux_set_gpioconf(uint8_t u8GpioNum, IomuxGpioConfReg rGpioConf) {
     register_set(&grIOMUX + gau8IomuxGpioIdx[u8GpioNum], rGpioConf.raw);
   }
+  static inline Reg iomux_get_gpioconf(uint8_t u8GpioNum) {
+    return register_read(&grIOMUX + gau8IomuxGpioIdx[u8GpioNum]);
+  }
 
 #ifdef __cplusplus
 }

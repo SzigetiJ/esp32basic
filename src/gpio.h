@@ -15,6 +15,20 @@ extern "C" {
 
   // Based on:
   // https://github.com/espressif/esp-idf/blob/6b3da6b1882f3b72e904cc90be67e9c4e3f369a9/components/soc/esp32/include/soc/gpio_reg.h
+  typedef volatile union {
+
+    volatile struct {
+      uint32_t rsvd0 : 2;
+      uint32_t u1PinPadDriver : 1;
+      uint32_t rsvd4 : 4;
+      uint32_t u3PinIntType : 3;
+      uint32_t bWakeUpEn : 1;
+      uint32_t rsvd11 : 2;
+      uint32_t u5PinIntEn : 5;
+      uint32_t rsvd18 : 14;
+    };
+    volatile uint32_t raw;
+  } SGpioPinReg;
 
   typedef struct {
     Reg BT_SELECT;
@@ -51,7 +65,7 @@ extern "C" {
     Reg PCPU_INT1;
     Reg PCPU_NMI_INT1;
     Reg CPUSDIO_INT1;
-    Reg PIN[40];
+    SGpioPinReg PIN[40];
     Reg cali_conf;
     Reg cali_data;
     Reg FUNC_IN_SEL_CFG[256];

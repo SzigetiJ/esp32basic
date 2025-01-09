@@ -31,6 +31,7 @@ AC_CONFIG_FILES([
   modules/Makefile
   examples/Makefile
   examples/0blink/Makefile
+  examples/0button/Makefile
   examples/0hello/Makefile
   examples/0ledctrl/Makefile
   examples/1rmtblink/Makefile
