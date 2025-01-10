@@ -31,6 +31,7 @@
 // ================ Local function declarations =================
 static void _button_init();
 static void _button_cycle(uint64_t u64Ticks);
+static void _button_isr(void *pvParam);
 
 // =================== Global constants ================
 const bool gbStartAppCpu = START_APP_CPU;
@@ -38,11 +39,9 @@ const uint16_t gu16Tim00Divisor = TIM0_0_DIVISOR;
 const uint64_t gu64tckSchedulePeriod = (CLK_FREQ_HZ / SCHEDULE_FREQ_HZ);
 
 // ==================== Local Data ================
-static volatile bool gbLedOn = false;
 static const char acMessage[] = "Button pressed.\n";
 
-// Implementation
-
+// ================ Local function definitions =================
 IRAM_ATTR static void _button_isr(void *pvParam) {
   bool bButtonEvent = gsGPIO.STATUS & (1 << BUTTON_GPIO);
   if (bButtonEvent) {
@@ -57,6 +56,8 @@ IRAM_ATTR static void _button_isr(void *pvParam) {
 }
 
 static void _button_init() {
+  // setup iomux & gpio regs
+  // note: GPIO0 is "preconfigured"
   IomuxGpioConfReg rIOMux;
   rIOMux.raw = iomux_get_gpioconf(BUTTON_GPIO);
   rIOMux.u1FunIE = 1;
@@ -66,6 +67,7 @@ static void _button_init() {
     .u5PinIntEn = 5
   };
   gsGPIO.PIN[BUTTON_GPIO] = sPinReg;
+  gsGPIO.STATUS_W1TC = (1 << BUTTON_GPIO);
 
   // register ISR and enable it
   ECpu eCpu = CPU_PRO;
@@ -74,7 +76,6 @@ static void _button_init() {
   *prDportIntMap = INT_CH;
   _xtos_set_interrupt_handler_arg(INT_CH, _button_isr, 0);
   ets_isr_unmask(1 << INT_CH);
-
 }
 
 static void _button_cycle(uint64_t u64Ticks) {
