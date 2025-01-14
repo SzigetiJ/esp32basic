@@ -48,8 +48,8 @@ extern "C" {
   /**
    * Copies an array of uint32_t values into RMT RAM registers.
    * @param eChannel Identifies the RMT channel.
-   * @param u8RamBlocks Number of RAM block the RMT channel owns.
-   * @param u32Offset Relative index (without wrap-around) of the first register to write (between 0 and u8RamBlocks * RAM_BLOCK_SIZE).
+   * @param u8RamBlocks Number of RAM block assigned to the RMT channel.
+   * @param u32Offset Relative index (starting with 0, without wrap-around) of the first register to write.
    * @param pu32Src Address of source array.
    * @param u32Len Length of source array.
    * @return Relative index of the next register to write to (similar to end pointer).

@@ -82,7 +82,6 @@ typedef uint8_t Color[3];
 
 // ================ Local function declarations =================
 
-static inline RegAddr _rmt_ram_addr(ERmtChannel eChannel, uint8_t u8ChannelSpan, uint16_t u16RegOffset);
 static void _byte_to_rmt(RegAddr prDest, uint8_t u8Value);
 static bool _put_next_byte(SRmtFeederState *psState);
 static void _rmt_init_controller();
@@ -134,13 +133,6 @@ static uint8_t gau8Buffer[3 * STRIP_LENGTH];
 static SRmtFeederState gsRmtFeederState = {.pu8Data = gau8Buffer, .szLen=sizeof(gau8Buffer), .szPos = 0};
 
 // ==================== Implementation ================
-
-static inline RegAddr _rmt_ram_addr(ERmtChannel eChannel, uint8_t u8ChannelSpan, uint16_t u16RegOffset) {
-  uint32_t u32IdxInChannel = u16RegOffset % (u8ChannelSpan * RMT_RAM_BLOCK_SIZE);
-  uint32_t u32IdxInRam = (RMT_RAM_BLOCK_SIZE * eChannel + u32IdxInChannel) % (RMT_CHANNEL_NUM * RMT_RAM_BLOCK_SIZE);
-  return gpsRMTRAM + u32IdxInRam;
-}
-
 IRAM_ATTR static void _byte_to_rmt(RegAddr prDest, uint8_t u8Value) {
   for (int i = 0; i < 8; ++i) {
     uint8_t u8EntryPatternIdx = (u8Value >> (8 - 1 - i)) & 1;
@@ -150,7 +142,7 @@ IRAM_ATTR static void _byte_to_rmt(RegAddr prDest, uint8_t u8Value) {
 
 IRAM_ATTR static bool _put_next_byte(SRmtFeederState *psState) {
   uint32_t u32Offset = 8 * psState->szPos;
-  RegAddr prDest = _rmt_ram_addr(RMTWS2812_CH, RMTWS2812_MEM_BLOCKS, u32Offset);
+  RegAddr prDest = rmt_ram_addr(RMTWS2812_CH, RMTWS2812_MEM_BLOCKS, u32Offset);
   if (psState->szPos < psState->szLen) {
     _byte_to_rmt(prDest, psState->pu8Data[psState->szPos++]);
   } else {

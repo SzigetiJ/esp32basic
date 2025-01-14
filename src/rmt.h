@@ -174,6 +174,19 @@ extern "C" {
   }
 
   /**
+   * Calculates the exact address of an RMT RAM entry register.
+   * @param eChannel Identifies the RMT channel.
+   * @param u8ChannelSpan The number of RMT RAM blocks assigned to the RMT channel.
+   * @param u16RegOffset Relative entry offset beginning with 0.
+   * @return Exact address of an RMT RAM entry register.
+   */
+  static inline RegAddr rmt_ram_addr(ERmtChannel eChannel, uint8_t u8ChannelSpan, uint16_t u16RegOffset) {
+    uint32_t u32IdxInChannel = u16RegOffset % (u8ChannelSpan * RMT_RAM_BLOCK_SIZE);
+    uint32_t u32IdxInRam = (RMT_RAM_BLOCK_SIZE * eChannel + u32IdxInChannel) % (RMT_CHANNEL_NUM * RMT_RAM_BLOCK_SIZE);
+    return gpsRMTRAM + u32IdxInRam;
+  }
+
+  /**
    * Tells the bit position of an interrupt in RMT interrupt registers (RAW / ST / ENA / CLR).
    * @param eChannel Identifies the RMT channel.
    * @param eType Type of the RMT interrupt.

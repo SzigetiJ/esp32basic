@@ -11,8 +11,6 @@
 
 // ============== Internal function declarations ==============
 static uint32_t _pairgen_next(U16Generator pfGen, UniRel pfEnd, void *pvParam);
-static uint32_t _ram_rel_idx(uint8_t u8Blocks, uint32_t u32AnyIdx);
-static uint32_t _ram_abs_idx(ERmtChannel eChannel, uint8_t u8Blocks, uint32_t u32RelIdx);
 static uint16_t _stretchgen_next(void *pvState);
 static bool _stretchgen_end(const void *pvState);
 
@@ -39,33 +37,6 @@ static uint32_t _pairgen_next(U16Generator pfGen, UniRel pfEnd, void *pvParam) {
   return *pu32Val;
 }
 
-/**
- * When doing arithmetic (address addition), we may exceed the upper bound of the RAM allocated to the channel.
- * This routine calculates the wrap-around-enabled relative address of an RMT RAM register.
- * @param u8Blocks Number of block the RMT channel owns.
- * @param u32AnyIdx Any RMT RAM entry index relative to the channel base.
- * @return Corrected RAM entry index relative to the channel base.
- */
-static uint32_t _ram_rel_idx(uint8_t u8Blocks, uint32_t u32AnyIdx) {
-  return (u32AnyIdx) % (u8Blocks * RMT_RAM_BLOCK_SIZE);
-}
-
-/**
- * This function calculates the absolute RMT RAM register index.
- * It takes into account the wrap-around within the channels RAM blocks,
- * and also the global wrap-around in RMT RAM (RAM block#7 is followed by RAM block#0).
- * @param eChannel Identifies the RMT channel.
- * @param u8Blocks Number of block the RMT channel owns.
- * @param u32AnyIdx Any RMT RAM entry index.
- * @return Absolute RAM entry index (base is channel#0 RMT RAM block base).
- */
-static uint32_t _ram_abs_idx(ERmtChannel eChannel, uint8_t u8Blocks, uint32_t u32AnyIdx) {
-  uint32_t u32MemBaseNOffset = eChannel * RMT_RAM_BLOCK_SIZE; // the base mem block of eChannel is shifted from prMemBase0 with this amount.
-  uint32_t u32RelRamIdx = _ram_rel_idx(u8Blocks, u32AnyIdx);
-  uint32_t u32AbsRamIdx = (u32MemBaseNOffset + u32RelRamIdx) % (RMT_CHANNEL_NUM * RMT_RAM_BLOCK_SIZE); // absolute ram idx in RMT RAM
-  return u32AbsRamIdx;
-}
-
 static uint16_t _stretchgen_next(void *pvParam) {
   SStretchGenState *psParam = (SStretchGenState*) pvParam;
   uint16_t u16Ret;
@@ -89,13 +60,11 @@ static bool _stretchgen_end(const void *pvParam) {
 // ============== Interface functions ==============
 
 uint32_t rmtutils_copytoram(ERmtChannel eChannel, uint8_t u8Blocks, uint32_t u32Offset, uint32_t *pu32Src, uint32_t u32Len) {
-  RegAddr prMemBase0 = rmt_ram_block(0); // base mem block of channel#0
-
   for (uint32_t i = 0; i < u32Len; ++i) {
-    prMemBase0[_ram_abs_idx(eChannel, u8Blocks, u32Offset + i)] = pu32Src[i];
+    *rmt_ram_addr(eChannel, u8Blocks, u32Offset + i) = pu32Src[i];
   }
 
-  return _ram_rel_idx(u8Blocks, u32Offset + u32Len);
+  return u32Offset + u32Len;
 }
 
 SStretchGenState rmtutils_init_stretchgenstate(uint32_t u32Multiplier, uint32_t u32Divisor, U16Generator fGen,
@@ -117,16 +86,14 @@ bool rmtutils_feed_tx_stretched(ERmtChannel eChannel, uint16_t *pu16MemPos, uint
 }
 
 bool rmtutils_feed_tx(ERmtChannel eChannel, uint16_t *pu16MemPos, uint16_t u16Len, U16Generator pfGen, UniRel pfEnd, void *pvGen) {
-  RegAddr prMemBase0 = rmt_ram_block(0); // base mem block of channel#0
   uint8_t u8Blocks = gpsRMT->asChConf[eChannel].r0.u4MemSize;
   uint16_t u16Written = 0; // counter for written registers
   bool bRet = false;
 
   for (; u16Written < u16Len && !bRet; ++u16Written) {
     uint32_t u32RegValue = pfEnd(pvGen) ? 0 : _pairgen_next(pfGen, pfEnd, pvGen); // entry-pair to write to the RMT RAM register
-    uint32_t u32AbsRamIdx = _ram_abs_idx(eChannel, u8Blocks, *pu16MemPos + u16Written);
 
-    prMemBase0[u32AbsRamIdx] = u32RegValue;
+    *rmt_ram_addr(eChannel, u8Blocks, *pu16MemPos + u16Written) = u32RegValue;
 
     // check if tx termination value was written
     if ((u32RegValue & RMT_ENTRYMAX) == 0 || (u32RegValue & (RMT_ENTRYMAX << 16)) == 0) {

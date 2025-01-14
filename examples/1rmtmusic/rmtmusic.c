@@ -248,6 +248,7 @@ IRAM_ATTR void _rmtmusic_feed(void *pvParam) {
     uint32_t au32Buf[NOTE2REG_BUFSIZE];
     uint8_t u8BufLen = _note_to_registers(&psParam->u32NextDuty, au32Buf, NOTE2REG_BUFSIZE, &psParam->psMusic[psParam->u32MusicIt++], &u8HiLen);
     psParam->u32RmtRamFillIt = rmtutils_copytoram(RMTMUSIC_CH, RMTMUSIC_MEM_BLOCKS, psParam->u32RmtRamFillIt, au32Buf, u8BufLen);
+    psParam->u32RmtRamFillIt %= RMTMUSIC_MEM_BLOCKS * RMT_RAM_BLOCK_SIZE;
     psParam->u8RmtRamCurHiLen = u8HiLen;
     psParam->u8RmtRamCurLoLen = u8BufLen - u8HiLen;
 
