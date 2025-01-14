@@ -10,7 +10,7 @@ include_HEADERS = dport.h esp32types.h esp_attr.h gpio.h i2c.h \
  utils/i2cutils.h utils/i2ciface.h utils/rmtutils.h utils/uartutils.h utils/generators.h
 nodist_include_HEADERS =
 
-libesp32basic_a_SOURCES = i2c.c lockmgr.c main.c timg.c utils/i2cutils.c utils/rmtutils.c utils/uartutils.c utils/generators.c
+libesp32basic_a_SOURCES = i2c.c lockmgr.c main.c rmt.c timg.c utils/i2cutils.c utils/rmtutils.c utils/uartutils.c utils/generators.c
 nodist_libesp32basic_a_SOURCES =
 
 CLEANFILES =
