@@ -17,8 +17,13 @@ EDP32.3V3    -- LS1.+5V
 #### Practices
 
 1. Play around with strip length, front length, etc. constants.
+
 2. Play around with iteration constants and update times.
+
 3. Make a 3 LED long segment run forth and back on the strip.
+
 4. Make 12 independent blinking LEDs.
+
 5. Make 6 independent blinking LEDs and on the other 6 LEDs do gradient cycling.
+
 6. Do gradient rotation with a single gradient, but allow to override gradient colors from terminal (UART) given in hex format.

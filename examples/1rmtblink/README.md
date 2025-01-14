@@ -20,8 +20,11 @@ ESP32.GPIO2 -- R1 --(A) D1 (K)-- ESP32.GND
 #### Practices
 
 1. Make the blinking asymmetric (e.g., longer ON, shorter OFF phases).
+
 2. Extend this setup with D2 (and R2) and bind it to RMT channel1.
+
 3. Allocate more RAM to RMT channel0 and make longer blinks (0.5s long phases).
+
 4. Before starting the blinking (overwriting the RMT RAM) check whether the RMT channel is in IDLE state.
 As we currently do not have (documented) access to the RMT channel's status register,
 examine (and set) the interrupt registers.

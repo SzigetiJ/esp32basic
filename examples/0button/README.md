@@ -12,7 +12,7 @@ After the interrupt is served, within the ISR, the interrupt status has to be cl
 
 #### Hardware components
 
-B0: BOOT button
+* B0: BOOT button
 
 #### Connections
 

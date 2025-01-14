@@ -15,4 +15,4 @@ if [ -n "$2" ]; then
  SPEED="$2"
 fi
 
-python -m serial.tools.miniterm --filter=direct $PORT $SPEED
+python -m serial.tools.miniterm --filter=direct "$PORT" "$SPEED"

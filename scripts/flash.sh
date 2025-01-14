@@ -6,7 +6,6 @@
 ##  [$2] port (default: /dev/ttyUSB0)
 ##  [$3] address (default: 0x1000)
 
-WDIR=`dirname $0`
 ESPTOOL="esptool.py"
 
 if [ $# -lt 1 ]; then
@@ -26,4 +25,4 @@ if [ -n "$3" ]; then
  ADDRESS="$3"
 fi
 
-$ESPTOOL --chip=esp32 --port "$USBPORT" write_flash $ADDRESS "$BINFILE" -ff 40m -fm dio
+$ESPTOOL --chip=esp32 --port "$USBPORT" write_flash "$ADDRESS" "$BINFILE" -ff 40m -fm dio

@@ -15,18 +15,18 @@ Some words about this project.
 Originally, I did my ESP32 development using the SDK provided by ESP-IDF.
 But soon it turned out that it does not fit to my purposes. Why?
 
- * The way the source code in ESP-IDF is organized leads to problems during the application development process.
+* The way the source code in ESP-IDF is organized leads to problems during the application development process.
 Here I mean the header dependencies. (And header dependencies also imply component dependencies).
 Just try to create a very simple "hello, world!" (UART) or led blinking (GPIO (& Timer)) project
 and see all the unselected / unwanted components (e.g., network protocol stack) getting compiled and linked
 taking away your precious time and space.
 
- * FreeRTOS is a good thing, I like it, but most of the time I do not use the features it provides.
+* FreeRTOS is a good thing, I like it, but most of the time I do not use the features it provides.
 
- * Digging deeper into the ESP-IDF SDK code, you realize that the peripheral access methods are synchronous (i.e., blocking).
+* Digging deeper into the ESP-IDF SDK code, you realize that the peripheral access methods are synchronous (i.e., blocking).
 I you want to create non-blocking peripheral access you have to write your own low-level code. And that is what I am doing.
 
- * Finally, take a look at the blink example of the `get-started` codes in ESP-IDF.
+* Finally, take a look at the blink example of the `get-started` codes in ESP-IDF.
 I cannot understand, how and why driving LED strip became a 'get-started' level of ESP32 coding.
 
 ### Quick start guide
@@ -101,13 +101,13 @@ THis list is supposed to grow longer and longer.
 
 ### Requirements
 
- * [Autotools](https://www.gnu.org/software/automake/), since Bilis ESP32 Basic is an automake project
+* [Autotools](https://www.gnu.org/software/automake/), since Bilis ESP32 Basic is an automake project
 (suggested versions: automake:1.16.1, autoconf:2.69).
 
- * [xtensa-esp-elf](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/tools/idf-tools.html) toolchain (compiler, linker, etc.)
+* [xtensa-esp-elf](https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/tools/idf-tools.html) toolchain (compiler, linker, etc.)
 (suggested versions: 13.2.0).
 
- * [esptool](https://github.com/espressif/esptool) Currently, the flash tools (see scripts) rely on `esptool.py`
+* [esptool](https://github.com/espressif/esptool) Currently, the flash tools (see scripts) rely on `esptool.py`
 (suggested versions: v4.7.0).
 
 ## Contribution
