@@ -20,24 +20,13 @@
 #include "dport.h"
 #include "typeaux.h"
 #include "esp_attr.h"
+#include "ws2812.h"
 
 // =================== Hard constants =================
 
-// #1: Timings -- common TICK base: 50ns: 20MHz
-#define WS2812_0H_NS       400U
-#define WS2812_0L_NS       850U
-#define WS2812_1H_NS       800U
-#define WS2812_1L_NS       450U
-#define WS2812_RES_US       50U // Reset length given in µs
-
+// #1: Timings -- 50ms: 20Hz update freq.
 #define UPDATE_PERIOD_MS      50U   ///< WS2812B update period
 #define BUF_UPDATE_PERIOD_MS  50U   ///< Data update period
-#define RMT_DIVISOR            4U   ///< RMT TICK freq is 80MHz / RMT_DIVISOR (4 -> 20MHz, 8 -> 10MHz, 2 -> 40MHz)
-
-#define RMTCLK_FREQ_HZ         (APB_FREQ_HZ / RMT_DIVISOR)        // 20 MHz
-#define RMTTICKS_PER_MS        (RMTCLK_FREQ_HZ / 1000U)           // 20000
-#define RMTTICKS_PER_US        (RMTCLK_FREQ_HZ / 1000000U)        // 20
-#define RMTNS_PER_TICKS        (1000 / RMTTICKS_PER_US)           // 50
 
 // #2: Channels / wires / addresses
 #define RMTWS2812_GPIO      21U
@@ -54,41 +43,27 @@
 
 // #4: RMT buffer settings
 #define RMTWS2812_MEM_BLOCKS  1U
-#define RMT_TXLIM        ((RMTWS2812_MEM_BLOCKS * RMT_RAM_BLOCK_SIZE) / 2)
-#define RMT_FEED0SIZE    (2 * RMT_TXLIM)
 
+// #5: colors
+#define G_MAX 0x7F
+#define G_MIX 0x5F
+#define R_MAX 0xFF
+#define R_MIX 0x7F
+#define B_MAX 0xFF
+#define B_MIX 0xBF
 
-// ============= Static checks ===============
-#if (RMT_TXLIM % 8 != 0)
-#error RMT_TXLIM must be multiple of 8
-#endif
-#if (RMT_FEED0SIZE % 8 != 0)
-#error RMT_FEED0SIZE must be multiple of 8
-#endif
 // ============= Local types ===============
-
-typedef struct {
-  uint8_t *pu8Data;
-  size_t szLen;
-  size_t szPos;
-  bool bBusy;
-} SRmtFeederState;
 
 typedef uint8_t Color[3];
 
 // ================ Local function declarations =================
 
-static void _byte_to_rmtram(RegAddr prDest, uint8_t u8Value);
-static bool _put_next_byte(SRmtFeederState *psState);
-static void _rmt_config_channel(ERmtChannel eChannel, bool bLevel, bool bHoldLevel);
 static void _fill_prebuffer(uint8_t *pu8Dest, uint8_t u8Stop0Idx, uint8_t u8Stop1Idx);
 static uint8_t _weighted_avg(uint8_t u8A, uint8_t u8B, uint32_t u32WeightA, uint32_t u32WeightB);
 static uint8_t *_buf_weighted_avg(uint8_t *pu8Res, uint32_t u32Len, uint8_t *pu8A, uint8_t *pu8B, uint32_t u32WeightA, uint32_t u32WeightB);
 static uint8_t *_rotbuf_weighted_avg(uint8_t *pu8Res, uint32_t u32Len, uint8_t *pu8A, uint32_t u32AOffset, uint8_t *pu8B, uint32_t u32BOffset, uint32_t u32WeightA, uint32_t u32WeightB);
-static void _rmtws2812_feed0(void *pvParam);
-static void _rmtws2812_txend_cb(void *pvParam);
-static void _rmtws2812_feed(void *pvParam);
-static void _rmtws2812_init();
+static void _rmtws2812_init_data();
+static void _rmtws2812_init_peripheral();
 static void _rmtws2812_cycle(uint64_t u64Ticks);
 static void _buf_update_cycle(uint64_t u64Ticks);
 
@@ -96,30 +71,16 @@ static void _buf_update_cycle(uint64_t u64Ticks);
 const bool gbStartAppCpu = START_APP_CPU;
 const uint16_t gu16Tim00Divisor = TIM0_0_DIVISOR;
 const uint64_t gu64tckSchedulePeriod = (CLK_FREQ_HZ / SCHEDULE_FREQ_HZ);
-const uint16_t gau16tckPhaseLen[] = {
-  WS2812_0H_NS / RMTNS_PER_TICKS,
-  WS2812_0L_NS / RMTNS_PER_TICKS,
-  WS2812_1H_NS / RMTNS_PER_TICKS,
-  WS2812_1L_NS / RMTNS_PER_TICKS,
-  (1000 * WS2812_RES_US) / RMTNS_PER_TICKS
-};
-const uint16_t gau16Entries[] = {
-  // 0: 0_HI, 0_LO
-  RMT_SIGNAL1 | gau16tckPhaseLen[0], RMT_SIGNAL0 | gau16tckPhaseLen[1],
-  // 1: 1_HI, 1_LO
-  RMT_SIGNAL1 | gau16tckPhaseLen[2], RMT_SIGNAL0 | gau16tckPhaseLen[3]
-};
-const uint32_t *pu32EntryPair = (const uint32_t*)gau16Entries;
 
 const Color gasStops[] = {
-  {0x00, 0xFF, 0x00},   // R
-  {0x5F, 0xBF, 0x00},   // Y
-  {0x00, 0x00, 0xFF},   // B
-  {0x7F, 0x00, 0x00},   // G
-  {0x00, 0x7F, 0xBF},   // M
-  {0x00, 0x00, 0x00},   // Off
-  {0x5F, 0x00, 0xBF},   // C
-  {0x5F, 0x7F, 0xBF}    // W
+  {0, R_MAX, 0},        // R
+  {G_MIX, R_MIX, 0},    // Y
+  {0, 0, B_MAX},        // B
+  {G_MAX, 0, 0},        // G
+  {0, R_MIX, B_MIX},    // M
+  {0, 0, 0},            // Off
+  {G_MIX, 0, B_MIX},    // C
+  {G_MIX, R_MIX, B_MIX} // W
 };
 
 // ==================== Local Data ================
@@ -127,49 +88,10 @@ const Color gasStops[] = {
 static uint8_t gau8PreBuffer0[3 * STRIP_LENGTH];
 static uint8_t gau8PreBuffer1[3 * STRIP_LENGTH];
 static uint8_t gau8Buffer[3 * STRIP_LENGTH];
-static SRmtFeederState gsRmtFeederState = {.pu8Data = gau8Buffer, .szLen = sizeof (gau8Buffer), .szPos = 0};
+static const SWs2812Iface gsWs2812Iface = {.eChannel = RMTWS2812_CH, .u8Blocks = RMTWS2812_MEM_BLOCKS};
+static SWs2812FeederState gsFeederState = {.sIface = gsWs2812Iface, .pu8Data = gau8Buffer, .szLen = sizeof (gau8Buffer), .szPos = 0};
 
 // ==================== Implementation ================
-
-IRAM_ATTR static void _byte_to_rmtram(RegAddr prDest, uint8_t u8Value) {
-  for (int i = 0; i < 8; ++i) {
-    uint8_t u8EntryPatternIdx = (u8Value >> (8 - 1 - i)) & 1;
-    prDest[i] = pu32EntryPair[u8EntryPatternIdx];
-  }
-}
-
-IRAM_ATTR static bool _put_next_byte(SRmtFeederState *psState) {
-  uint32_t u32Offset = 8 * psState->szPos;
-  RegAddr prDest = rmt_ram_addr(RMTWS2812_CH, RMTWS2812_MEM_BLOCKS, u32Offset);
-  if (psState->szPos < psState->szLen) {
-    _byte_to_rmtram(prDest, psState->pu8Data[psState->szPos++]);
-  } else {
-    prDest[0] = 0;
-    return false;
-  }
-  return true;
-}
-
-static void _rmt_config_channel(ERmtChannel eChannel, bool bLevel, bool bHoldLevel) {
-  // rmt channel config
-  SRmtChConf rChConf = {
-    .r0 =
-    {.u8DivCnt = RMT_DIVISOR, .u4MemSize = RMTWS2812_MEM_BLOCKS, .bCarrierEn = false, .bCarrierOutLvl = 1},
-    .r1 =
-    {.bRefAlwaysOn = 1, .bRefCntRst = 1, .bMemRdRst = 1, .bIdleOutLvl = bLevel, .bIdleOutEn = bHoldLevel}
-  };
-  gpsRMT->asChConf[eChannel] = rChConf;
-
-  // set memory ownership of RMT RAM blocks
-  SRmtChConf1Reg sRdMemCfg = {.raw = -1};
-  sRdMemCfg.bMemOwner = 0;
-  for (int i = 0; i < RMTWS2812_MEM_BLOCKS; ++i) {
-    gpsRMT->asChConf[(eChannel + i) % RMT_CHANNEL_NUM].r1.raw &= sRdMemCfg.raw;
-  }
-
-  gpsRMT->arTxLim[eChannel].u9Val = RMT_TXLIM; // half of the memory block
-}
-
 static void _fill_prebuffer(uint8_t *pu8Dest, uint8_t u8Stop0Idx, uint8_t u8Stop1Idx) {
   for (int i = 0; i < STRIP_FRONT_LEN; ++i) {
     memcpy(pu8Dest + (3 * i), gasStops[u8Stop0Idx], 3);
@@ -205,41 +127,22 @@ static uint8_t *_rotbuf_weighted_avg(uint8_t *pu8Res, uint32_t u32Len, uint8_t *
   return pu8Res;
 }
 
-static void _rmtws2812_feed0(void *pvParam) {
-  SRmtFeederState *psParam = (SRmtFeederState*)pvParam;
-
-  for (int i = 0; i < RMT_FEED0SIZE / 8; ++i) {
-    if (!_put_next_byte(psParam)) break;
-  }
-}
-
 IRAM_ATTR static void _rmtws2812_txend_cb(void *pvParam) {
-  SRmtFeederState *psParam = (SRmtFeederState*)pvParam;
+  SWs2812FeederState *psParam = (SWs2812FeederState*)pvParam;
   psParam->bBusy = false;
 }
 
-IRAM_ATTR static void _rmtws2812_feed(void *pvParam) {
-  SRmtFeederState *psParam = (SRmtFeederState*)pvParam;
-
-  for (int i = 0; i < RMT_TXLIM / 8; ++i) {
-    if (!_put_next_byte(psParam)) break;
-  }
-}
-
-static void _rmtws2812_init() {
+static void _rmtws2812_init_data() {
   _fill_prebuffer(gau8PreBuffer0, 0, 1);
   _buf_weighted_avg(gau8Buffer, ARRAY_SIZE(gau8Buffer), gau8PreBuffer0, gau8PreBuffer0, 1, 0);
+}
 
+static void _rmtws2812_init_peripheral() {
+  rmt_isr_init(); // ws2812_init will write into rmt_isr table
   rmt_init_controller(true, true);
-  rmt_init_channel(RMTWS2812_CH, RMTWS2812_GPIO, false);
-  _rmt_config_channel(RMTWS2812_CH, 0, 0);
+  ws2812_init(RMTWS2812_GPIO, APB_FREQ_HZ, _rmtws2812_txend_cb, &gsFeederState);
 
-  // we do some logging, hence set UART0 speed
-  gsUART0.CLKDIV = APB_FREQ_HZ / 115200;
-
-  // register ISR and enable it
-  rmt_isr_init();
-  rmt_isr_register(RMTWS2812_CH, _rmtws2812_txend_cb, NULL, _rmtws2812_feed, NULL, &gsRmtFeederState);
+  // enable RMT ISR
   rmt_isr_start(CPU_PRO, RMTINT_CH);
 }
 
@@ -248,9 +151,7 @@ static void _rmtws2812_cycle(uint64_t u64Ticks) {
   static bool bFirstRun = true;
 
   if (bFirstRun) {
-    _rmtws2812_feed0(&gsRmtFeederState);
-    gsRmtFeederState.bBusy = true;
-    rmt_start_tx(RMTWS2812_CH, true);
+    ws2812_start(&gsFeederState);
     bFirstRun = false;
   }
 
@@ -259,11 +160,9 @@ static void _rmtws2812_cycle(uint64_t u64Ticks) {
       gpsRMT->arInt[RMT_INT_CLR] = rmt_int_bit(RMTWS2812_CH, RMT_INT_TXEND);
       gsUART0.FIFO = 'E';
     }
-    if (gsRmtFeederState.szPos == gsRmtFeederState.szLen && !gsRmtFeederState.bBusy) {
-      gsRmtFeederState.szPos = 0;
-      _rmtws2812_feed0(&gsRmtFeederState);
-      gsRmtFeederState.bBusy = true;
-      rmt_start_tx(RMTWS2812_CH, true);
+    if (gsFeederState.szPos == gsFeederState.szLen && !gsFeederState.bBusy) {
+      gsFeederState.szPos = 0;
+      ws2812_start(&gsFeederState);
     }
     if (gpsRMT->arInt[RMT_INT_ST] & rmt_int_bit(RMTWS2812_CH, RMT_INT_ERR)) {
       gpsRMT->arInt[RMT_INT_CLR] = rmt_int_bit(RMTWS2812_CH, RMT_INT_ERR);
@@ -339,7 +238,11 @@ static void _buf_update_cycle(uint64_t u64Ticks) {
 // ====================== Interface functions =========================
 
 void prog_init_pro_pre() {
-  _rmtws2812_init();
+  // we do some logging, hence set UART0 speed
+  gsUART0.CLKDIV = APB_FREQ_HZ / 115200;
+
+  _rmtws2812_init_data();
+  _rmtws2812_init_peripheral();
 }
 
 void prog_init_app() {

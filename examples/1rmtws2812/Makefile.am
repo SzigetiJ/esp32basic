@@ -22,8 +22,8 @@ AM_LDFLAGS += \
  -T $(top_srcdir)/ld/esp32.rom.syscalls.ld
 endif
 
-AM_CPPFLAGS = -I$(top_srcdir)/src -I$(srcdir)
-LDADD = $(top_builddir)/src/libesp32basic.a
+AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/modules
+LDADD = $(top_builddir)/src/libesp32basic.a $(top_builddir)/modules/libesp32modules.a
 
 bin_PROGRAMS = \
  rmtws2812.elf
