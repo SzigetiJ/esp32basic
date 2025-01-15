@@ -232,7 +232,7 @@ static void _rmtws2812_init() {
 
   rmt_init_controller(true, true);
   rmt_init_channel(RMTWS2812_CH, RMTWS2812_GPIO, false);
-  _rmt_config_channel(RMTWS2812_CH, RMTWS2812_GPIO, 0);
+  _rmt_config_channel(RMTWS2812_CH, 0, 0);
 
   // we do some logging, hence set UART0 speed
   gsUART0.CLKDIV = APB_FREQ_HZ / 115200;

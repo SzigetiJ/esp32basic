@@ -258,7 +258,7 @@ static void _rmtmusic_init() {
   // initialize MCU parts
   rmt_init_controller(true, true);
   rmt_init_channel(RMTMUSIC_CH, RMTMUSIC_GPIO, false);
-  _rmt_config_channel(RMTMUSIC_CH, RMTMUSIC_GPIO, 0);
+  _rmt_config_channel(RMTMUSIC_CH, 0, 0);
 
   // we do some logging, hence set UART0 speed
   gsUART0.CLKDIV = APB_FREQ_HZ / 115200;

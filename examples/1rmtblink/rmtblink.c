@@ -34,8 +34,7 @@
 // ============= Local types ===============
 
 // ================ Local function declarations =================
-static void _rmt_init_controller();
-static void _rmt_init_channel(ERmtChannel eChannel, uint8_t u8Pin, bool bLevel, bool bHoldLevel);
+static void _rmt_config_channel(ERmtChannel eChannel, bool bLevel, bool bHoldLevel);
 static void _rmtblink_init();
 static void _rmtblink_cycle(uint64_t u64Ticks);
 
@@ -58,27 +57,7 @@ static const uint8_t gu8BlinkMax = 8;
 
 // ==================== Implementation ================
 
-static void _rmt_init_controller() {
-  dport_regs()->PERIP_CLK_EN |= 1 << DPORT_PERIP_BIT_RMT;
-
-  dport_regs()->PERIP_RST_EN |= 1 << DPORT_PERIP_BIT_RMT;
-  dport_regs()->PERIP_RST_EN &= ~(1 << DPORT_PERIP_BIT_RMT);
-
-  SRmtApbConfReg rApbConf = {.bMemAccessEn = 1, .bMemTxWrapEn = 1}; // direct RMT RAM access (not using FIFO), mem wrap-around (not used)
-  gpsRMT->rApb = rApbConf;
-}
-
-static void _rmt_init_channel(ERmtChannel eChannel, uint8_t u8Pin, bool bLevel, bool bHoldLevel) {
-  // gpio & iomux
-  bLevel ? gpio_pin_out_on(u8Pin) : gpio_pin_out_off(u8Pin); // set GPIO level when not bound to RMT (optional)
-
-  IomuxGpioConfReg rRmtConf = {.u1FunIE = 1, .u1FunWPU = 1, .u3McuSel = 2}; // input enable, pull-up, iomux function
-  iomux_set_gpioconf(u8Pin, rRmtConf);
-
-  gpio_pin_enable(u8Pin);
-  gpio_matrix_out(u8Pin, rmt_out_signal(eChannel), 0, 0);
-  gpio_matrix_in(u8Pin, rmt_in_signal(eChannel), 0);
-
+static void _rmt_config_channel(ERmtChannel eChannel, bool bLevel, bool bHoldLevel) {
   // rmt channel config
   SRmtChConf rChConf = {
     .r0 =
@@ -92,8 +71,9 @@ static void _rmt_init_channel(ERmtChannel eChannel, uint8_t u8Pin, bool bLevel, 
 }
 
 static void _rmtblink_init() {
-  _rmt_init_controller();
-  _rmt_init_channel(RMTBLINK_CH, RMTBLINK_GPIO, 0, 0);
+  rmt_init_controller(true, true);
+  rmt_init_channel(RMTBLINK_CH, RMTBLINK_GPIO, false);
+  _rmt_config_channel(RMTBLINK_CH, 0, 0);
 }
 
 static void _rmtblink_cycle(uint64_t u64Ticks) {

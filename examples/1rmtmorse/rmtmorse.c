@@ -59,8 +59,7 @@ static uint16_t _mph_to_entry(EMorsePhase ePhase);
 static uint16_t _mph2entry_next(void *pvState);
 static bool _mph2entry_end(const void *pvState);
 
-static void _rmt_init_controller();
-static void _rmt_init_channel(ERmtChannel eChannel, uint8_t u8Pin, bool bLevel, bool bHoldLevel);
+static void _rmt_config_channel(ERmtChannel eChannel, bool bLevel, bool bHoldLevel);
 static void _rmtmorse_init();
 static void _rmtmorse_cycle(uint64_t u64Ticks);
 
@@ -119,27 +118,7 @@ static bool _mph2entry_end(const void *pvState) {
   return mphgen_end(psState);
 }
 
-static void _rmt_init_controller() {
-  dport_regs()->PERIP_CLK_EN |= 1 << DPORT_PERIP_BIT_RMT;
-
-  dport_regs()->PERIP_RST_EN |= 1 << DPORT_PERIP_BIT_RMT;
-  dport_regs()->PERIP_RST_EN &= ~(1 << DPORT_PERIP_BIT_RMT);
-
-  SRmtApbConfReg rApbConf = {.bMemAccessEn = 1, .bMemTxWrapEn = 1}; // direct RMT RAM access (not using FIFO), mem wrap-around
-  gpsRMT->rApb = rApbConf;
-}
-
-static void _rmt_init_channel(ERmtChannel eChannel, uint8_t u8Pin, bool bLevel, bool bHoldLevel) {
-  // gpio & iomux
-  bLevel ? gpio_pin_out_on(u8Pin) : gpio_pin_out_off(u8Pin); // set GPIO level when not bound to RMT (optional)
-
-  IomuxGpioConfReg rRmtConf = {.u1FunIE = 1, .u1FunWPU = 1, .u3McuSel = 2}; // input enable, pull-up, iomux function
-  iomux_set_gpioconf(u8Pin, rRmtConf);
-
-  gpio_pin_enable(u8Pin);
-  gpio_matrix_out(u8Pin, rmt_out_signal(eChannel), 0, 0);
-  gpio_matrix_in(u8Pin, rmt_in_signal(eChannel), 0);
-
+static void _rmt_config_channel(ERmtChannel eChannel, bool bLevel, bool bHoldLevel) {
   // rmt channel config
   SRmtChConf rChConf = {
     .r0 =
@@ -162,6 +141,9 @@ static void _rmt_init_channel(ERmtChannel eChannel, uint8_t u8Pin, bool bLevel, 
   }
 
   gpsRMT->arTxLim[eChannel].u9Val = RMT_TXLIM; // half of the memory block
+
+  // Note: in this example we do not register ISRs
+  // _rmtmorse_cycle() is responsible for checking and clearing RMT_INT status bits.
   gpsRMT->arInt[RMT_INT_ENA] =
           rmt_int_bit(eChannel, RMT_INT_TXEND) |
           rmt_int_bit(eChannel, RMT_INT_TXTHRES) |
@@ -169,8 +151,9 @@ static void _rmt_init_channel(ERmtChannel eChannel, uint8_t u8Pin, bool bLevel, 
 }
 
 static void _rmtmorse_init() {
-  _rmt_init_controller();
-  _rmt_init_channel(RMTMORSE_CH, RMTMORSE_GPIO, 0, 0);
+  rmt_init_controller(true, true);
+  rmt_init_channel(RMTMORSE_CH, RMTMORSE_GPIO, false);
+  _rmt_config_channel(RMTMORSE_CH, 0, 0);
 
   // we do some logging, hence set UART0 speed
   gsUART0.CLKDIV = APB_FREQ_HZ / 115200;
