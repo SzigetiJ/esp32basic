@@ -66,8 +66,7 @@ typedef struct {
 static uint8_t _period_to_entrypair(uint32_t *pu32Dest, uint8_t u8DestSize, uint32_t u32Period, bool bLevel);
 static uint8_t _note_to_registers(uint32_t *pu32CDuty, uint32_t *pu32RamBuf, uint8_t u8BufLen, const SMusicNote *psNote, uint8_t *pu8HiLen);
 
-static void _rmt_init_controller();
-static void _rmt_init_channel(ERmtChannel eChannel, uint8_t u8Pin, bool bLevel, bool bHoldLevel);
+static void _rmt_config_channel(ERmtChannel eChannel, bool bLevel, bool bHoldLevel);
 static void _rmtmusic_init();
 static void _rmtmusic_cycle(uint64_t u64Ticks);
 
@@ -110,7 +109,7 @@ static uint32_t gau32VariationLen[ARRAY_SIZE(gasVarShift)]; ///< The length of t
 static SMusicNote *gapsMusicRotation[ARRAY_SIZE(gasVarShift) + 1][2]; ///< There is a rotation: after one music [0] has been played, another [1] follows it. Initializer function fills this array.
 static uint32_t gau32RotationLen[ARRAY_SIZE(gasVarShift) + 1]; ///< This array will contain the length of the follower musics.
 
-static volatile SMusicRmtStateDesc gsMusicState; ///< ISR parameter
+static SMusicRmtStateDesc gsMusicState; ///< ISR parameter
 
 // ==================== Implementation ================
 
@@ -180,28 +179,8 @@ static uint8_t _note_to_registers(uint32_t *pu32CDuty, uint32_t *pu32RamBuf, uin
   return u8Ret;
 }
 
-static void _rmt_init_controller() {
-
-  dport_regs()->PERIP_CLK_EN |= 1 << DPORT_PERIP_BIT_RMT;
-
-  dport_regs()->PERIP_RST_EN |= 1 << DPORT_PERIP_BIT_RMT;
-  dport_regs()->PERIP_RST_EN &= ~(1 << DPORT_PERIP_BIT_RMT);
-
-  SRmtApbConfReg rApbConf = {.bMemAccessEn = 1, .bMemTxWrapEn = 1}; // direct RMT RAM access (not using FIFO), mem wrap-around
-  gpsRMT->rApb = rApbConf;
-}
-
-static void _rmt_init_channel(ERmtChannel eChannel, uint8_t u8Pin, bool bLevel, bool bHoldLevel) {
-  // gpio & iomux
-  bLevel ? gpio_pin_out_on(u8Pin) : gpio_pin_out_off(u8Pin); // set GPIO level when not bound to RMT (optional)
-
-  IomuxGpioConfReg rRmtConf = {.u1FunIE = 1, .u1FunWPU = 1, .u3McuSel = 2}; // input enable, pull-up, iomux function
-  iomux_set_gpioconf(u8Pin, rRmtConf);
-
-  gpio_pin_enable(u8Pin);
-  gpio_matrix_out(u8Pin, rmt_out_signal(eChannel), 0, 0);
-  gpio_matrix_in(u8Pin, rmt_in_signal(eChannel), 0);
-
+static void _rmt_config_channel(ERmtChannel eChannel, bool bLevel, bool bHoldLevel) {
+  // rmt channel config
   // rmt channel config
   SRmtChConf rChConf = {
     .r0 =
@@ -225,55 +204,37 @@ static void _rmt_init_channel(ERmtChannel eChannel, uint8_t u8Pin, bool bLevel, 
   }
 
   gpsRMT->arTxLim[eChannel].u9Val = RMT_TXLIM; // half of the memory block
-  gpsRMT->arInt[RMT_INT_ENA] =
-          rmt_int_bit(eChannel, RMT_INT_TXEND) |
-          rmt_int_bit(eChannel, RMT_INT_TXTHRES) |
-          rmt_int_bit(eChannel, RMT_INT_ERR);
 }
 
 IRAM_ATTR void _rmtmusic_feed(void *pvParam) {
   SMusicRmtStateDesc *psParam = (SMusicRmtStateDesc*) pvParam;
 
-  if (gpsRMT->arInt[RMT_INT_ST] & rmt_int_bit(RMTMUSIC_CH, RMT_INT_TXTHRES)) {
-    gpsRMT->arInt[RMT_INT_CLR] = rmt_int_bit(RMTMUSIC_CH, RMT_INT_TXTHRES);
+  gpsRMT->arCarrierDuty[RMTMUSIC_CH].raw = psParam->u32NextDuty;
+  //uint8_t u8TxLim = psParam->u8RmtRamLastLoLen + psParam->u8RmtRamCurHiLen;
+  uint8_t u8TxLim = psParam->u8RmtRamCurLoLen + psParam->u8RmtRamCurHiLen;
+  gpsRMT->arTxLim[RMTMUSIC_CH].u9Val = u8TxLim;
 
-    gpsRMT->arCarrierDuty[RMTMUSIC_CH].raw = psParam->u32NextDuty;
-    //uint8_t u8TxLim = psParam->u8RmtRamLastLoLen + psParam->u8RmtRamCurHiLen;
-    uint8_t u8TxLim = psParam->u8RmtRamCurLoLen + psParam->u8RmtRamCurHiLen;
-    gpsRMT->arTxLim[RMTMUSIC_CH].u9Val = u8TxLim;
+  psParam->u8RmtRamLastLoLen = psParam->u8RmtRamCurLoLen;
 
-    psParam->u8RmtRamLastLoLen = psParam->u8RmtRamCurLoLen;
+  uint8_t u8HiLen;
+  uint32_t au32Buf[NOTE2REG_BUFSIZE];
+  uint8_t u8BufLen = _note_to_registers(&psParam->u32NextDuty, au32Buf, NOTE2REG_BUFSIZE, &psParam->psMusic[psParam->u32MusicIt++], &u8HiLen);
+  psParam->u32RmtRamFillIt = rmtutils_copytoram(RMTMUSIC_CH, RMTMUSIC_MEM_BLOCKS, psParam->u32RmtRamFillIt, au32Buf, u8BufLen);
+  psParam->u32RmtRamFillIt %= RMTMUSIC_MEM_BLOCKS * RMT_RAM_BLOCK_SIZE;
+  psParam->u8RmtRamCurHiLen = u8HiLen;
+  psParam->u8RmtRamCurLoLen = u8BufLen - u8HiLen;
 
-    uint8_t u8HiLen;
-    uint32_t au32Buf[NOTE2REG_BUFSIZE];
-    uint8_t u8BufLen = _note_to_registers(&psParam->u32NextDuty, au32Buf, NOTE2REG_BUFSIZE, &psParam->psMusic[psParam->u32MusicIt++], &u8HiLen);
-    psParam->u32RmtRamFillIt = rmtutils_copytoram(RMTMUSIC_CH, RMTMUSIC_MEM_BLOCKS, psParam->u32RmtRamFillIt, au32Buf, u8BufLen);
-    psParam->u32RmtRamFillIt %= RMTMUSIC_MEM_BLOCKS * RMT_RAM_BLOCK_SIZE;
-    psParam->u8RmtRamCurHiLen = u8HiLen;
-    psParam->u8RmtRamCurLoLen = u8BufLen - u8HiLen;
-
-    if (psParam->u32MusicIt == psParam->u32MusicLen) {
-      // rotate music
-      bool bFound = false;
-      for (int i = 0; i < ARRAY_SIZE(gapsMusicRotation) && !bFound; ++i) {
-        if (psParam->psMusic == gapsMusicRotation[i][0]) {
-          bFound = true;
-          psParam->psMusic = gapsMusicRotation[i][1];
-          psParam->u32MusicLen = gau32RotationLen[i];
-        }
+  if (psParam->u32MusicIt == psParam->u32MusicLen) {
+    // rotate music
+    bool bFound = false;
+    for (int i = 0; i < ARRAY_SIZE(gapsMusicRotation) && !bFound; ++i) {
+      if (psParam->psMusic == gapsMusicRotation[i][0]) {
+        bFound = true;
+        psParam->psMusic = gapsMusicRotation[i][1];
+        psParam->u32MusicLen = gau32RotationLen[i];
       }
-      psParam->u32MusicIt = 0;
     }
-  }
-
-  if (gpsRMT->arInt[RMT_INT_ST] & rmt_int_bit(RMTMUSIC_CH, RMT_INT_ERR)) {
-    gpsRMT->arInt[RMT_INT_CLR] = rmt_int_bit(RMTMUSIC_CH, RMT_INT_ERR);
-    gsUART0.FIFO = 'R';
-  }
-
-  if (gpsRMT->arInt[RMT_INT_ST] & rmt_int_bit(RMTMUSIC_CH, RMT_INT_TXEND)) {
-    gpsRMT->arInt[RMT_INT_CLR] = rmt_int_bit(RMTMUSIC_CH, RMT_INT_TXEND);
-    gsUART0.FIFO = 'E';
+    psParam->u32MusicIt = 0;
   }
 }
 
@@ -295,19 +256,17 @@ static void _rmtmusic_init() {
   gau32RotationLen[ARRAY_SIZE(gasVarShift)] = ARRAY_SIZE(gasMusic);
 
   // initialize MCU parts
-  _rmt_init_controller();
-  _rmt_init_channel(RMTMUSIC_CH, RMTMUSIC_GPIO, 0, 0);
+  rmt_init_controller(true, true);
+  rmt_init_channel(RMTMUSIC_CH, RMTMUSIC_GPIO, false);
+  _rmt_config_channel(RMTMUSIC_CH, RMTMUSIC_GPIO, 0);
 
   // we do some logging, hence set UART0 speed
   gsUART0.CLKDIV = APB_FREQ_HZ / 115200;
 
-  ECpu eCpu = CPU_PRO;
-  RegAddr prDportIntMap = (eCpu == CPU_PRO ? &dport_regs()->PRO_RMT_INTR_MAP : &dport_regs()->APP_RMT_INTR_MAP);
-
-  *prDportIntMap = RMTINT_CH;
-  _xtos_set_interrupt_handler_arg(RMTINT_CH, _rmtmusic_feed, (int) &gsMusicState);
-  ets_isr_unmask(1 << RMTINT_CH);
-
+  // register ISR and enable it
+  rmt_isr_init();
+  rmt_isr_register(RMTMUSIC_CH, NULL, NULL, _rmtmusic_feed, NULL, &gsMusicState);
+  rmt_isr_start(CPU_PRO, RMTINT_CH);
 }
 
 static void _rmtmusic_cycle(uint64_t u64Ticks) {
