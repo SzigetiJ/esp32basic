@@ -74,7 +74,7 @@ const uint64_t gu64tckSchedulePeriod = (CLK_FREQ_HZ / SCHEDULE_FREQ_HZ);
 
 const Color gasStops[] = {
   {0, R_MAX, 0},        // R
-  {G_MIX, R_MIX, 0},    // Y
+  {G_MIX, R_MIX + 32, 0}, // Y
   {0, 0, B_MAX},        // B
   {G_MAX, 0, 0},        // G
   {0, R_MIX, B_MIX},    // M
