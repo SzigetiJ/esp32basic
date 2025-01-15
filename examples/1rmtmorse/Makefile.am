@@ -1,6 +1,7 @@
 include $(top_srcdir)/scripts/elf2bin.mk
 include $(top_srcdir)/ld/flags.mk
-AM_LDFLAGS += -T $(top_srcdir)/ld/esp32.rom.ld
+AM_LDFLAGS += -T $(top_srcdir)/ld/esp32.rom.ld \
+ -T $(top_srcdir)/ld/esp32.rom.redefined.ld
 
 noinst_HEADERS = defines.h mphgen.h
 
