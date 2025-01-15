@@ -92,16 +92,16 @@ typedef union {
 
   struct {
     bool bDirtyCtrlHum : 1;
-    bool bDirtyStatus : 1; // meaning that the status bye must be read
-    bool bDirtyCtrlMeas : 1; // note: async comm is not triggered until bModeSet is set.
+    bool bDirtyStatus : 1;    // meaning that the status bye must be read
+    bool bDirtyCtrlMeas : 1;  // note: async comm is not triggered until bModeSet is set.
     bool bDirtyConfig : 1;
     bool bDataUpdated : 1;
     bool bCalib0Ready : 1;
     bool bCalib1Ready : 1;
     bool bWaitingForRx : 1;
-    bool bModeSet : 1; // triggers chain of state changes until the mode bits get written
+    bool bModeSet : 1;        // triggers chain of state changes until the mode bits get written
     bool bRequestForData : 1; // triggers chain of state changes until data bytes are read out
-    bool bReset : 1;  // triggers write to reset register
+    bool bReset : 1;          // triggers write to reset register
     uint32_t rsvd11 : 5;
     uint8_t u8CurAddr : 8;
     uint8_t u5CurLen : 5;
@@ -496,7 +496,7 @@ bool bme280_async_tx_cycle(const SI2cIfaceCfg *psIface, SBme280StateDesc *psStat
     } else if (!psFlags->bCalib1Ready) {
       _read_bytes(psIface, psEntry, psState, psState->au8Calib + MEMLEN_CALIB0, MEMADDR_CALIB1, MEMLEN_CALIB1);
     } else if (psFlags->bDirtyStatus) {
-      _read_bytes(psIface, psEntry, psState, psState->au8Config + MEMADDR_STATUS - MEMADDR_CTRLH, MEMADDR_STATUS, 1);
+      _read_bytes(psIface, psEntry, psState, psState->au8Config + (MEMADDR_STATUS - MEMADDR_CTRLH), MEMADDR_STATUS, 1);
     } else if (!psFlags->bDataUpdated) {
       _read_bytes(psIface, psEntry, psState, psState->au8Data, MEMADDR_DATA, MEMLEN_DATA);
     } else {

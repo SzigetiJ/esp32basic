@@ -21,9 +21,9 @@
 #define RMT_CLK_NS            (1000000 / RMT_FREQ_KHZ)
 
 // ================ Local function declarations =================
-static void _rmt_config_channel(SWs2812Iface *psIface, uint8_t u8Divisor);
+static void _rmt_config_channel(const SWs2812Iface *psIface, uint8_t u8Divisor);
 void _byte_to_rmtram(RegAddr prDest, uint8_t u8Value);
-static bool _put_next_byte(SWs2812FeederState *psState);
+static bool _put_next_byte(SWs2812State *psState);
 static void _feeder(void *pvParam);
 
 // =================== Global constants ================
@@ -46,7 +46,8 @@ const uint32_t *pu32EntryPair = (const uint32_t*)gau16Entries;
 // ==================== Local Data ================
 
 // ==================== Implementation ================
-static void _rmt_config_channel(SWs2812Iface *psIface, uint8_t u8Divisor) {
+
+static void _rmt_config_channel(const SWs2812Iface *psIface, uint8_t u8Divisor) {
   // rmt channel config
   SRmtChConf rChConf = {
     .r0 =
@@ -73,7 +74,7 @@ IRAM_ATTR void _byte_to_rmtram(RegAddr prDest, uint8_t u8Value) {
   }
 }
 
-IRAM_ATTR static bool _put_next_byte(SWs2812FeederState *psState) {
+IRAM_ATTR static bool _put_next_byte(SWs2812State *psState) {
   uint32_t u32Offset = 8 * psState->szPos;
   RegAddr prDest = rmt_ram_addr(psState->sIface.eChannel, psState->sIface.u8Blocks, u32Offset);
   if (psState->szPos < psState->szLen) {
@@ -86,7 +87,7 @@ IRAM_ATTR static bool _put_next_byte(SWs2812FeederState *psState) {
 }
 
 static void _feeder(void *pvParam) {
-  SWs2812FeederState *psParam = (SWs2812FeederState*)pvParam;
+  SWs2812State *psParam = (SWs2812State*)pvParam;
 
   for (int i = 0; i < (psParam->sIface.u8Blocks * RMT_RAM_BLOCK_SIZE) / 16; ++i) {
     if (!_put_next_byte(psParam)) break;
@@ -95,16 +96,17 @@ static void _feeder(void *pvParam) {
 
 // ============== Interface functions ==============
 
-void ws2812_init(uint8_t u8Pin, uint32_t u32ApbClkFreq, Isr fTxEndCb, SWs2812FeederState *psFeederState) {
+void ws2812_init(uint8_t u8Pin, uint32_t u32ApbClkFreq, SWs2812State *psFeederState, Isr fTxEndCb, void *pvTxEndCbParam) {
   rmt_init_channel(psFeederState->sIface.eChannel, u8Pin, false);
   _rmt_config_channel(&psFeederState->sIface, u32ApbClkFreq / (1000 * RMT_FREQ_KHZ));
-  rmt_isr_register(psFeederState->sIface.eChannel, fTxEndCb, NULL, _feeder, NULL, psFeederState);
+  rmt_isr_register(psFeederState->sIface.eChannel, RMT_INT_TXTHRES, _feeder, psFeederState);
+  rmt_isr_register(psFeederState->sIface.eChannel, RMT_INT_TXEND, fTxEndCb, pvTxEndCbParam);
 }
 
-void ws2812_start(SWs2812FeederState *psFeederState) {
-    _feeder(psFeederState);
-    _feeder(psFeederState);
-    psFeederState->bBusy = true;
-    rmt_start_tx(psFeederState->sIface.eChannel, true);
+void ws2812_start(SWs2812State *psFeederState) {
+  psFeederState->szPos = 0;
+  _feeder(psFeederState);
+  _feeder(psFeederState);
+  rmt_start_tx(psFeederState->sIface.eChannel, true);
 }
 

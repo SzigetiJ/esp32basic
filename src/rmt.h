@@ -254,7 +254,7 @@ extern "C" {
   void rmt_init_channel(ERmtChannel eChannel, uint8_t u8Pin, bool bInitLevel);
   void rmt_isr_init();
   void rmt_isr_start(ECpu eCpu, uint8_t u8IntChannel);
-  void rmt_isr_register(ERmtChannel eChannel, Isr fTxEndIsr, Isr fRxEndIsr, Isr fTxThresholdIsr, Isr fErrorIsr, void *pvParam);
+  void rmt_isr_register(ERmtChannel eChannel, ERmtIntType eIntType, Isr fIsr, void *pvParam);
 
 #ifdef __cplusplus
 }

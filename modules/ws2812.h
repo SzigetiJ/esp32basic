@@ -21,17 +21,28 @@ extern "C" {
   } SWs2812Iface;
 
   typedef struct {
-    uint8_t *pu8Data;
-    size_t szLen;
-    size_t szPos;
-    bool bBusy;
-    SWs2812Iface sIface;
-  } SWs2812FeederState;
+    uint8_t *pu8Data;     ///< Points to data (GRB sequence) (Set by user)
+    size_t szLen;         ///< Length of the data (number of bytes)
+    size_t szPos;         ///< Current data cursor (Internal attribute)
+    SWs2812Iface sIface;  ///< Interface description
+  } SWs2812State;
 
+  // ============= Inline functions ===============
+  static inline SWs2812State ws2812_init_feederstate(uint8_t *pu8Data, size_t szLen, ERmtChannel eChannel, uint8_t u8Blocks) {
+    SWs2812Iface sIface = {
+      .eChannel = eChannel,
+      .u8Blocks = u8Blocks
+    };
+    return (SWs2812State){
+      .pu8Data = pu8Data,
+      .szLen = szLen,
+      .szPos = 0,
+      .sIface = sIface};
+  }
   // ============= Interface function declaration ===============
 
-  void ws2812_init(uint8_t u8Pin, uint32_t u32ApbClkFreq, Isr fTxEndCb, SWs2812FeederState *psFeederState);
-  void ws2812_start(SWs2812FeederState *psFeederState);
+  void ws2812_init(uint8_t u8Pin, uint32_t u32ApbClkFreq, SWs2812State *psFeederState, Isr fTxEndCb, void *pvTxEndCbParam);
+  void ws2812_start(SWs2812State *psFeederState);
 
 #ifdef __cplusplus
 }

@@ -89,6 +89,7 @@ THis list is supposed to grow longer and longer.
 * Device drivers
   * BME280 Temperature / Pressure / Humidity sensor
   * (_TODO_: cleanup) BH1750 Light sensor
+  * WS2812B LED strip
 * etc (_TODO_)
 
 ### Simplifications

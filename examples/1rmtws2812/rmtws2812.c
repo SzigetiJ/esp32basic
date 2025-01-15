@@ -88,8 +88,8 @@ const Color gasStops[] = {
 static uint8_t gau8PreBuffer0[3 * STRIP_LENGTH];
 static uint8_t gau8PreBuffer1[3 * STRIP_LENGTH];
 static uint8_t gau8Buffer[3 * STRIP_LENGTH];
-static const SWs2812Iface gsWs2812Iface = {.eChannel = RMTWS2812_CH, .u8Blocks = RMTWS2812_MEM_BLOCKS};
-static SWs2812FeederState gsFeederState = {.sIface = gsWs2812Iface, .pu8Data = gau8Buffer, .szLen = sizeof (gau8Buffer), .szPos = 0};
+static SWs2812State gsFeederState;
+static bool gbFeederBusy = false;
 
 // ==================== Implementation ================
 static void _fill_prebuffer(uint8_t *pu8Dest, uint8_t u8Stop0Idx, uint8_t u8Stop1Idx) {
@@ -128,8 +128,8 @@ static uint8_t *_rotbuf_weighted_avg(uint8_t *pu8Res, uint32_t u32Len, uint8_t *
 }
 
 IRAM_ATTR static void _rmtws2812_txend_cb(void *pvParam) {
-  SWs2812FeederState *psParam = (SWs2812FeederState*)pvParam;
-  psParam->bBusy = false;
+  bool *psParam = (bool*)pvParam;
+  *psParam = false;
 }
 
 static void _rmtws2812_init_data() {
@@ -140,7 +140,8 @@ static void _rmtws2812_init_data() {
 static void _rmtws2812_init_peripheral() {
   rmt_isr_init(); // ws2812_init will write into rmt_isr table
   rmt_init_controller(true, true);
-  ws2812_init(RMTWS2812_GPIO, APB_FREQ_HZ, _rmtws2812_txend_cb, &gsFeederState);
+  gsFeederState = ws2812_init_feederstate(gau8Buffer, sizeof (gau8Buffer), RMTWS2812_CH, RMTWS2812_MEM_BLOCKS);
+  ws2812_init(RMTWS2812_GPIO, APB_FREQ_HZ, &gsFeederState, _rmtws2812_txend_cb, &gbFeederBusy);
 
   // enable RMT ISR
   rmt_isr_start(CPU_PRO, RMTINT_CH);
@@ -151,6 +152,7 @@ static void _rmtws2812_cycle(uint64_t u64Ticks) {
   static bool bFirstRun = true;
 
   if (bFirstRun) {
+    gbFeederBusy = true;
     ws2812_start(&gsFeederState);
     bFirstRun = false;
   }
@@ -160,8 +162,8 @@ static void _rmtws2812_cycle(uint64_t u64Ticks) {
       gpsRMT->arInt[RMT_INT_CLR] = rmt_int_bit(RMTWS2812_CH, RMT_INT_TXEND);
       gsUART0.FIFO = 'E';
     }
-    if (gsFeederState.szPos == gsFeederState.szLen && !gsFeederState.bBusy) {
-      gsFeederState.szPos = 0;
+    if (gsFeederState.szPos == gsFeederState.szLen && !gbFeederBusy) {
+      gbFeederBusy = true;
       ws2812_start(&gsFeederState);
     }
     if (gpsRMT->arInt[RMT_INT_ST] & rmt_int_bit(RMTWS2812_CH, RMT_INT_ERR)) {

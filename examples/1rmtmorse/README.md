@@ -66,7 +66,7 @@ ESP32.GPIO2 -- R1 --(A) D1 (K)-- ESP32.GND
 1. Play around with the memory size allocated to the RMT channel.
 
 2. The ESP32 reference manual states that in `TX_CONTI_MODE`
-"there will be an idle level lasting one clk_div cycle between N and N+1 transmissions."
+"there will be an idle level lasting one `clk_div` cycle between N and N+1 transmissions."
 Solve this problem somehow.
 
 3. Instead of periodic register scanning, use an ISR.
@@ -75,6 +75,6 @@ Solve this problem somehow.
 (transition start should be triggered by newline character).
 
 5. Replace D1 with a speaker and make audio output.
-To achieve this you have to modulate the RMT pulses with a _carrier_ wave.
+To achieve this you have to modulate the RMT pulses with a *carrier* wave.
 The setup of the carrier is already implemented, you just have to switch on (set `CARRIER_EN` to `1`).
 What you still can do is playing around with the carrier frequency / duty cycle.

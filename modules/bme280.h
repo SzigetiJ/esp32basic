@@ -73,9 +73,9 @@ extern "C" {
     uint32_t u32LastLabel;
     uint32_t u32CommState;
     // the following attributes are storing data trasmitted to / received from the target device
-    uint8_t au8Calib[42]; ///< bytes at mem 0x88 .. 0xa1, 0xe1 .. 0xf0
-    uint8_t au8Data[8]; ///< bytes at mem 0xf7 .. 0xfe
-    uint8_t au8Config[4]; ///< bytes at mem 0xf2 .. 0xf5
+    uint8_t au8Calib[42];   ///< bytes at mem 0x88 .. 0xa1, 0xe1 .. 0xf0
+    uint8_t au8Data[8];     ///< bytes at mem 0xf7 .. 0xfe
+    uint8_t au8Config[4];   ///< bytes at mem 0xf2 .. 0xf5
   } SBme280StateDesc;
 
   // interface functions

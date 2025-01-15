@@ -16,7 +16,7 @@
 
 typedef struct {
   Isr aafIsr[8][4];
-  void *apvParam[8];
+  void *apvParam[8][4];
   uint8_t abChannelEn;
 } SRmtIntDispatcher;
 
@@ -37,7 +37,7 @@ IRAM_ATTR void _dispatch_isr(void *pvParam) {
         if (gpsRMT->arInt[RMT_INT_ST] & rmt_int_bit(iChannel, iInt)) {
           gpsRMT->arInt[RMT_INT_CLR] = rmt_int_bit(iChannel, iInt);
           if (NULL != psParam->aafIsr[iChannel][iInt]) {
-            psParam->aafIsr[iChannel][iInt](psParam->apvParam[iChannel]);
+            psParam->aafIsr[iChannel][iInt](psParam->apvParam[iChannel][iInt]);
           } else {
             // unhandled exception with registered RMT channel
           }
@@ -78,28 +78,18 @@ void rmt_isr_start(ECpu eCpu, uint8_t u8IntChannel) {
 /**
  * Registers ISRs to an RMT channel.
  * If a given interrupt type should not be handled, the corresponding Isr parameter should be NULL.
- * @param eChannel Identifies the RMT channel.
- * @param fTxEndIsr function to invoke in case of TXEND interrupt.
- * @param fRxEndIsr function to invoke in case of RXEND interrupt.
- * @param fTxThresholdIsr function to invoke in case of TXTHRESH interrupt.
- * @param fErrorIsr function to invoke in case of ERR interrupt.
+ * @param eChannel Identifies the RMT channel
+ * @param eIntType Interrupt type, either TXEND, RXEND, ERR or TXTHRES.
+ * @param fIsr Function to invoke in case of eIntType interrupt.
  * @param pvParam parameter passed to the Isr functions.
  */
-void rmt_isr_register(ERmtChannel eChannel, Isr fTxEndIsr, Isr fRxEndIsr, Isr fTxThresholdIsr, Isr fErrorIsr, void *pvParam) {
+void rmt_isr_register(ERmtChannel eChannel, ERmtIntType eIntType, Isr fIsr, void *pvParam) {
   gsIntDispatcher.abChannelEn |= (1 << eChannel);
 
-  gsIntDispatcher.aafIsr[eChannel][RMT_INT_TXEND] = fTxEndIsr;
-  gsIntDispatcher.aafIsr[eChannel][RMT_INT_RXEND] = fRxEndIsr;
-  gsIntDispatcher.aafIsr[eChannel][RMT_INT_TXTHRES] = fTxThresholdIsr;
-  gsIntDispatcher.aafIsr[eChannel][RMT_INT_ERR] = fErrorIsr;
+  gsIntDispatcher.aafIsr[eChannel][eIntType] = fIsr;
+  gsIntDispatcher.apvParam[eChannel][eIntType] = pvParam;
 
-  gsIntDispatcher.apvParam[eChannel] = pvParam;
-
-  Reg rIntMask = 0;
-  for (int iInt = 0; iInt < 4; ++iInt) {
-    if (NULL != gsIntDispatcher.aafIsr[eChannel][iInt]) rIntMask |= rmt_int_bit(eChannel, iInt);
-  }
-  gpsRMT->arInt[RMT_INT_ENA] |= rIntMask;
+  gpsRMT->arInt[RMT_INT_ENA] |= rmt_int_bit(eChannel, eIntType);
 }
 
 /**

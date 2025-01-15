@@ -265,7 +265,7 @@ static void _rmtmusic_init() {
 
   // register ISR and enable it
   rmt_isr_init();
-  rmt_isr_register(RMTMUSIC_CH, NULL, NULL, _rmtmusic_feed, NULL, &gsMusicState);
+  rmt_isr_register(RMTMUSIC_CH, RMT_INT_TXTHRES, _rmtmusic_feed, &gsMusicState);
   rmt_isr_start(CPU_PRO, RMTINT_CH);
 }
 
