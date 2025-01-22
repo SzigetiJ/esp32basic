@@ -17,22 +17,42 @@ extern "C" {
 
   // ============= Types ===============
 
+  /**
+   * This struct contains bit decoded DHT22 data.
+   * The raw data (signal level and duration) is not stored.
+   */
   typedef struct {
-    uint8_t au8Data[DHT22_DATA_LEN];
-    uint8_t au8Invalid[DHT22_DATA_LEN];
+    uint8_t au8Data[DHT22_DATA_LEN];    ///< Stores raw data decoded bit-by-bit from RMT RAM entries.
+    uint8_t au8Invalid[DHT22_DATA_LEN]; ///< Shows which bits could not be decoded from RMT RAM entries.
   } SDht22Data;
 
+  /**
+   * Function type of the callback that gets invoked,
+   * when the DHT22 data is received and bit decoded.
+   * pvParam is Arbitrary data passed to the function,
+   * whereas psData contains the result of the bit-decoding.
+   */
   typedef void (*FDht22Callback)(void *pvParam, SDht22Data *psData);
 
+  /**
+   * Contains data that the interface functions require.
+   */
   typedef struct {
-    ERmtChannel eChannel;
-    FDht22Callback fReadyCb;
-    void *pvReadyCbParam;
-    SDht22Data sData;
+    ERmtChannel eChannel;     ///< RMT channel.
+    FDht22Callback fReadyCb;  ///< Callback to invoke when all the data is received and decoded.
+    void *pvReadyCbParam;     ///< First parameter to pass to the callback function.
+    SDht22Data sData;         ///< Store decoded sensor data.
   } SDht22Descriptor;
 
   // ============= Inline functions ===============
 
+  /**
+   * Creates and initializes SDht22Descriptor instance.
+   * @param eChannel  Identifies the RMT channel.
+   * @param fReadyCb  Callback to invoke when the data is received and decoded.
+   * @param pvReadyCbParam  First parameter to pass to the callback.
+   * @return  Initialized descriptor instance.
+   */
   static inline SDht22Descriptor dht22_config(ERmtChannel eChannel, FDht22Callback fReadyCb, void *pvReadyCbParam) {
     SDht22Descriptor sRet = {.eChannel = eChannel, .fReadyCb = fReadyCb, .pvReadyCbParam = pvReadyCbParam};
     return sRet;

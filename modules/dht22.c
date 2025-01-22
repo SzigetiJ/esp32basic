@@ -11,7 +11,7 @@
 #include "dht22.h"
 #include "rmt.h"
 
-#define DHT_HOSTPULLDOWN_IVAL_US 1100U
+#define DHT_HOSTPULLDOWN_IVAL_US 1100U  ///< The communication begins with host sending out signal 0 for 1.1 ms.
 
 // measured: [70..73] and [23..27]
 #define DHT_BIT1_IVAL_LO_US 68
@@ -19,9 +19,9 @@
 #define DHT_BIT0_IVAL_LO_US 22
 #define DHT_BIT0_IVAL_HI_US 29
 
-#define DHT22_IDLE_US 90
+#define DHT22_IDLE_US 90            ///< If the input signal is constant 0 or 1 for more than 90 µs, the RX process is done.
 
-#define RMT_FREQ_KHZ     1000U   // 1MHz -- clk: 1µs
+#define RMT_FREQ_KHZ     1000U      ///< 1MHz -- clk: 1µs
 #define RMT_CLK_NS            (1000000 / RMT_FREQ_KHZ)
 #if (1000 == RMT_FREQ_KHZ)
 #define US_TO_RMTCLK(X) (X)
@@ -30,7 +30,7 @@
 #define US_TO_RMTCLK(X) (((X) * RMT_FREQ_KHZ) / 1000)
 #define RMTCLK_TO_US(X) (((X) * 1000) / RMT_FREQ_KHZ)
 #endif
-#define RMTDHT_FILTER_THRES 50U
+#define RMTDHT_FILTER_THRES 50U     ///< RMT filters out spikes shorter than that many APB clocks.
 
 // ================ Local function declarations =================
 static inline bool _u16ltz(uint16_t u16Value);
@@ -121,6 +121,12 @@ static void _rxready(void *pvParam) {
 
 // ============== Interface functions ==============
 
+/**
+ * Initializes DHT22 communication environment.
+ * @param u8Pin GPIO pin.
+ * @param u32ApbClkFreq APB clock frequency.
+ * @param psDht22Desc DHT22 communication descriptor.
+ */
 void dht22_init(uint8_t u8Pin, uint32_t u32ApbClkFreq, SDht22Descriptor *psDht22Desc) {
   rmt_init_channel(psDht22Desc->eChannel, u8Pin, false);
   _rmt_config_channel(psDht22Desc->eChannel, u32ApbClkFreq / (1000 * RMT_FREQ_KHZ));
@@ -128,6 +134,10 @@ void dht22_init(uint8_t u8Pin, uint32_t u32ApbClkFreq, SDht22Descriptor *psDht22
   rmt_isr_register(psDht22Desc->eChannel, RMT_INT_RXEND, _rxready, psDht22Desc);
 }
 
+/**
+ * Starts a DHT22 communication process.
+ * @param psDht22Desc DHT22 communication descriptor.
+ */
 void dht22_run(SDht22Descriptor *psDht22Desc) {
   static const uint32_t u32Tx0 = (RMT_SIGNAL0 | US_TO_RMTCLK(DHT_HOSTPULLDOWN_IVAL_US)) | (RMT_SIGNAL1 << 16);
 
@@ -140,15 +150,30 @@ void dht22_run(SDht22Descriptor *psDht22Desc) {
   rmt_start_tx(psDht22Desc->eChannel, 1);
 }
 
+/**
+ * Gets humidity data from received and bit-decoded data.
+ * @param psData Received bit-decoded data.
+ * @return Humidity data with 1-digit precision.
+ */
 uint16_t dht22_get_rhum(const SDht22Data *psData) {
   return (psData->au8Data[0] << 8) | psData->au8Data[1];
 }
 
+/**
+ * Gets temperature data from received and bit-decoded data.
+ * @param psData Received bit-decoded data.
+ * @return Temperature data with 1-digit precision.
+ */
 int16_t dht22_get_temp(const SDht22Data *psData) {
   uint16_t u16T0 = (psData->au8Data[2] << 8) | psData->au8Data[3];
   return _u16toi16(u16T0);
 }
 
+/**
+ * Tells if the received data is valid.
+ * @param psData Received bit-decoded data.
+ * @return The data does not contains any invalid bit and the checksum matches.
+ */
 bool dht22_data_valid(const SDht22Data *psData) {
   bool bAllBitValid = true;
   uint8_t u8DataSum = 0;
