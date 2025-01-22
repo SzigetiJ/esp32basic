@@ -26,18 +26,18 @@ extern "C" {
   // ============== Types ==============
 
   typedef enum {
-    RMT_INT_RAW = 0, ///< Raw interrupt status (RO)
-    RMT_INT_ST = 1, ///< Masked interrupt status (RO)
-    RMT_INT_ENA = 2, ///< Interrupts with active bits are enabled (and shown in masked interrupt status), interrupts with inactive bits are disabled (RW)
-    RMT_INT_CLR = 3 ///< Setting a bit clears the given interrupt (WO)
-  } ERmtIntReg; ///< Types of interrupt registers.
+    RMT_INT_RAW = 0,  ///< Raw interrupt status (RO)
+    RMT_INT_ST = 1,   ///< Masked interrupt status (RO)
+    RMT_INT_ENA = 2,  ///< Interrupts with active bits are enabled (and shown in masked interrupt status), interrupts with inactive bits are disabled (RW)
+    RMT_INT_CLR = 3   ///< Setting a bit clears the given interrupt (WO)
+  } ERmtIntReg;       ///< Types of interrupt registers.
 
   typedef enum {
-    RMT_INT_TXEND = 0, ///< TX is done.
-    RMT_INT_RXEND = 1, ///< RX is done.
-    RMT_INT_ERR = 2, ///< An error occured.
+    RMT_INT_TXEND = 0,  ///< TX is done.
+    RMT_INT_RXEND = 1,  ///< RX is done.
+    RMT_INT_ERR = 2,    ///< An error occured.
     RMT_INT_TXTHRES = 3 ///< TX threshold is reached.
-  } ERmtIntType; ///< Types of RMT interrupt.
+  } ERmtIntType;        ///< Types of RMT interrupt.
 
   typedef enum {
     RMT_CH0 = 0,
@@ -53,14 +53,14 @@ extern "C" {
   typedef volatile union {
 
     volatile struct {
-      uint32_t u8DivCnt : 8; ///< The divisor for the channel clock of channel n. (R/W)
+      uint32_t u8DivCnt : 8;        ///< The divisor for the channel clock of channel n. (R/W)
 
-      uint32_t u16IdleThres : 16; ///< In receive mode, when no edge is detected on the input signal for longer than REG_IDLE_THRES_CHn channel clock cycles, the receive process is finished. (R/W)
+      uint32_t u16IdleThres : 16;   ///< In receive mode, when no edge is detected on the input signal for longer than REG_IDLE_THRES_CHn channel clock cycles, the receive process is finished. (R/W)
 
-      uint32_t u4MemSize : 4; ///< The amount of memory blocks allocated to channel n. (R/W)
-      uint32_t bCarrierEn : 1; ///< Carrier modulation is enabled with 1, while carrier modulation is disabled with 0. (R/W)
-      uint32_t bCarrierOutLvl : 1; ///< Used when the carrier wave is being transmitted. Transmit on low output level with 0, and transmit on high output level with 1. (R/W)
-      uint32_t bMemPd : 1; ///< Power down the entire RMT RAM block.Reset (It only exists in RMT_CH0CONF0). 1: power down memory; 0: power up memory. (R/W)
+      uint32_t u4MemSize : 4;       ///< The amount of memory blocks allocated to channel n. (R/W)
+      uint32_t bCarrierEn : 1;      ///< Carrier modulation is enabled with 1, while carrier modulation is disabled with 0. (R/W)
+      uint32_t bCarrierOutLvl : 1;  ///< Used when the carrier wave is being transmitted. Transmit on low output level with 0, and transmit on high output level with 1. (R/W)
+      uint32_t bMemPd : 1;          ///< Power down the entire RMT RAM block.Reset (It only exists in RMT_CH0CONF0). 1: power down memory; 0: power up memory. (R/W)
       uint32_t rsvd31 : 1;
     };
     volatile uint32_t raw;
@@ -69,22 +69,22 @@ extern "C" {
   typedef volatile union {
 
     volatile struct {
-      uint32_t bTxStart : 1; ///< Set this bit to start sending data on channel n. (R/W)
-      uint32_t bRxEn : 1; ///< Set this bit to enable receiving data on channel n. (R/W)
-      uint32_t bMemWrRst : 1; ///< Set this bit to reset the write-RAM address for channel n by accessing the receiver. (R/W)
-      uint32_t bMemRdRst : 1; ///< Set this bit to reset the read-RAM address for channel n by accessing the transmitter. (R/W)
-      uint32_t bFifoRst : 1; ///< Undocumented bit. Probably resets FIFO internal counters (R/W).
-      uint32_t bMemOwner : 1; ///< Number 1 indicates that the receiver is using the RAM, while 0 indicates that the transmitter is using the RAM. (R/W)
-      uint32_t bTxContiMode : 1; ///< If this bit is set, instead of going to an idle state when transmission ends, the transmitter will restart transmission. This results in a repeating output signal. (R/W)
-      uint32_t bRxFilterEn : 1; ///< receive filter’s enable-bit for channel n. (R/W)
+      uint32_t bTxStart       : 1; ///< Set this bit to start sending data on channel n. (R/W)
+      uint32_t bRxEn          : 1; ///< Set this bit to enable receiving data on channel n. (R/W)
+      uint32_t bMemWrRst      : 1; ///< Set this bit to reset the write-RAM address for channel n by accessing the receiver. (R/W)
+      uint32_t bMemRdRst      : 1; ///< Set this bit to reset the read-RAM address for channel n by accessing the transmitter. (R/W)
+      uint32_t bFifoRst       : 1; ///< Undocumented bit. Probably resets FIFO internal counters (R/W).
+      uint32_t bMemOwner      : 1; ///< Number 1 indicates that the RX process can write the RAM (R/W).
+      uint32_t bTxContiMode   : 1; ///< If this bit is set, instead of going to an idle state when transmission ends, the transmitter will restart transmission. This results in a repeating output signal. (R/W)
+      uint32_t bRxFilterEn    : 1; ///< receive filter’s enable-bit for channel n. (R/W)
 
       uint32_t u8RxFilterThres : 8; ///< In receive mode, channel n ignores input pulse when the pulse width is smaller than this value in APB clock periods. (R/W)
 
-      uint32_t bRefCntRst : 1; ///< Setting this bit resets the clock divider of channel n. (R/W)
-      uint32_t bRefAlwaysOn : 1; ///< Select the channel’s base clock. 1:clk_apb; 0:clk_ref. (R/W)
-      uint32_t bIdleOutLvl : 1; ///< The level of output signals in channel n when the latter is in IDLE state. (R/W)
-      uint32_t bIdleOutEn : 1; ///< Output enable-control bit for channel n in IDLE state. (R/W)
-      uint32_t rsvd20 : 12; ///< Reserved
+      uint32_t bRefCntRst     : 1; ///< Setting this bit resets the clock divider of channel n. (R/W)
+      uint32_t bRefAlwaysOn   : 1; ///< Select the channel’s base clock. 1:clk_apb; 0:clk_ref. (R/W)
+      uint32_t bIdleOutLvl    : 1; ///< The level of output signals in channel n when the latter is in IDLE state. (R/W)
+      uint32_t bIdleOutEn     : 1; ///< Output enable-control bit for channel n in IDLE state. (R/W)
+      uint32_t rsvd20         : 12; ///< Reserved
     };
     volatile uint32_t raw;
   } SRmtChConf1Reg;
@@ -97,8 +97,8 @@ extern "C" {
   typedef volatile union {
 
     volatile struct {
-      uint32_t u16Low : 16; ///< If carrier is enabled, this value defines the length of low level in the carrier wave (APB/REF ticks).
-      uint32_t u16High : 16; ///< If carrier is enabled, this value defines the length of high level in the carrier wave (APB/REF ticks).
+      uint32_t u16Low : 16;   ///< If carrier is enabled, this value defines the length of low level in the carrier wave (APB/REF ticks).
+      uint32_t u16High : 16;  ///< If carrier is enabled, this value defines the length of high level in the carrier wave (APB/REF ticks).
     };
     volatile uint32_t raw;
   } SRmtChCarrierDutyReg;
@@ -106,7 +106,7 @@ extern "C" {
   typedef union {
 
     volatile struct {
-      uint32_t u9Val : 9; ///< After sending this amount of TX entries, TX_THR_EVENT interrupt is produced.
+      uint32_t u9Val : 9;     ///< After sending this amount of TX entries, TX_THR_EVENT interrupt is produced.
       uint32_t rsvd9 : 23;
     };
     volatile uint32_t raw;
@@ -127,13 +127,14 @@ extern "C" {
   typedef union {
 
     volatile struct {
-      uint32_t rsvd0 : 12; ///< ??, Probably RX status
-      uint32_t u9TxIdx : 9; ///< TX mem idx
-      uint32_t bTxWrapped : 1; ///< TX memory pointer is below the channel's memory block (mem idx offset is -512)
+      uint32_t u9RxIdx : 9;     ///< RX mem idx
+      uint32_t rsvd9 : 3;       ///< ???, probably RX status
+      uint32_t u9TxIdx : 9;     ///< TX mem idx
+      uint32_t bTxWrapped : 1;  ///< TX memory pointer is below the channel's memory block (mem idx offset is -512)
       uint32_t rsvd22 : 2;
-      uint32_t bTxState : 1; ///< TX process is ongoing
+      uint32_t bTxState : 1;    ///< TX process is ongoing
       uint32_t rsvd25 : 7;
-    };
+    } ;
     volatile uint32_t raw;
   } SRmtStatusReg;
 
