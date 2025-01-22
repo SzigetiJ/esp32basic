@@ -76,10 +76,6 @@ static void _rmt_config_channel(ERmtChannel eChannel, uint8_t u8Divisor) {
 
 static void _rxstart(void *pvParam) {
   SDht22Descriptor *psParam = (SDht22Descriptor*)pvParam;
-  SRmtChConf1Reg sConf1 = {.raw = 0};
-  sConf1.bMemOwner = 1;
-  gsRMT.asChConf[psParam->eChannel].r1.raw |= sConf1.raw;
-
   rmt_start_rx(psParam->eChannel, 1);
 
 }
