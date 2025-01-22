@@ -28,6 +28,7 @@ static void _feeder(void *pvParam);
 
 // =================== Global constants ================
 
+/// This array merely stores phase length measured in RMT channel ticks.
 const uint16_t gau16tckPhaseLen[] = {
   WS2812_0H_NS / RMT_CLK_NS,
   WS2812_0L_NS / RMT_CLK_NS,
@@ -35,12 +36,19 @@ const uint16_t gau16tckPhaseLen[] = {
   WS2812_1L_NS / RMT_CLK_NS,
   (1000 * WS2812_RES_US) / RMT_CLK_NS
 };
+/// In case of WS2812 the RMT phases always come in (HI,LO) pairs.
+/// gau16Entries and pu32EntryPair point to the same data:
+/// We use gau16Entries for data definition,
+/// however, for data readout we always use pu32EntryPair.
 const uint16_t gau16Entries[] = {
   // 0: 0_HI, 0_LO
   RMT_SIGNAL1 | gau16tckPhaseLen[0], RMT_SIGNAL0 | gau16tckPhaseLen[1],
   // 1: 1_HI, 1_LO
   RMT_SIGNAL1 | gau16tckPhaseLen[2], RMT_SIGNAL0 | gau16tckPhaseLen[3]
 };
+/// pu32EntryPair points to an array of two items:
+/// pu32EntryPair[0] stores the RMT entrypair associated with bit0, whereas
+/// pu32EntryPair[1] stores the RMT entrypair associated with bit1
 const uint32_t *pu32EntryPair = (const uint32_t*)gau16Entries;
 
 // ==================== Local Data ================
@@ -67,6 +75,11 @@ static void _rmt_config_channel(const SWs2812Iface *psIface, uint8_t u8Divisor) 
   gpsRMT->arTxLim[psIface->eChannel].u9Val = (psIface->u8Blocks * RMT_RAM_BLOCK_SIZE) / 2;
 }
 
+/**
+ * Generates RMT entry pairs for the 8 bits of a byte and puts them into the RMT RAM.
+ * @param prDest Put the entry pair to the registers starting at this address.
+ * @param u8Value The byte to process.
+ */
 IRAM_ATTR void _byte_to_rmtram(RegAddr prDest, uint8_t u8Value) {
   for (int i = 0; i < 8; ++i) {
     uint8_t u8EntryPatternIdx = (u8Value >> (8 - 1 - i)) & 1;
@@ -74,6 +87,13 @@ IRAM_ATTR void _byte_to_rmtram(RegAddr prDest, uint8_t u8Value) {
   }
 }
 
+/**
+ * Wrapper function to _byte_to_rmtram().
+ * If all the bytes of the input data are sent, the terminating entry pair
+ * is put into the current RMT RAM register.
+ * @param psState State descriptor.
+ * @return End of the input data is still not reached.
+ */
 IRAM_ATTR static bool _put_next_byte(SWs2812State *psState) {
   uint32_t u32Offset = 8 * psState->szPos;
   RegAddr prDest = rmt_ram_addr(psState->sIface.eChannel, psState->sIface.u8Blocks, u32Offset);
@@ -86,6 +106,12 @@ IRAM_ATTR static bool _put_next_byte(SWs2812State *psState) {
   return true;
 }
 
+/**
+ * The feeder procedure fills half of the RMT RAM range assigned to the channel.
+ * This function is called twice before starting the RMT TX procedure (thus fills the whole RAM range),
+ * and it is also triggered by the TXTHRES RMT interrupt.
+ * @param pvParam SWs2812State pointer.
+ */
 static void _feeder(void *pvParam) {
   SWs2812State *psParam = (SWs2812State*)pvParam;
 
@@ -109,4 +135,3 @@ void ws2812_start(SWs2812State *psFeederState) {
   _feeder(psFeederState);
   rmt_start_tx(psFeederState->sIface.eChannel, true);
 }
-

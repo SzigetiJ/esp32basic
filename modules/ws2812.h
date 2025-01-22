@@ -15,11 +15,18 @@ extern "C" {
 
   // ============= Types ===============
 
+/**
+ * Whenever we send data to WS2812, first we have to know which RMT channel we use.
+ * Also, we have to know the register range where to put the data.
+ */
   typedef struct {
-    ERmtChannel eChannel;
-    uint8_t u8Blocks;
+    ERmtChannel eChannel; ///< Identifies the RMT channel
+    uint8_t u8Blocks;     ///< Number of RMT RAM blocks the channel owns
   } SWs2812Iface;
 
+/**
+ * State descriptor of the RMT data transmission for WS2812.
+ */
   typedef struct {
     uint8_t *pu8Data;     ///< Points to data (GRB sequence) (Set by user)
     size_t szLen;         ///< Length of the data (number of bytes)
@@ -28,6 +35,14 @@ extern "C" {
   } SWs2812State;
 
   // ============= Inline functions ===============
+  /**
+   * Initializes a state descriptor with the given attributes.
+   * @param pu8Data Source data.
+   * @param szLen Source data length.
+   * @param eChannel RMT channel.
+   * @param u8Blocks Number of RMT RAM blocks the channel owns.
+   * @return Initialized state descriptor.
+   */
   static inline SWs2812State ws2812_init_feederstate(uint8_t *pu8Data, size_t szLen, ERmtChannel eChannel, uint8_t u8Blocks) {
     SWs2812Iface sIface = {
       .eChannel = eChannel,
