@@ -35,6 +35,10 @@
 #define RMTINT_CH           23U
 
 // ============= Local types ===============
+typedef struct {
+  STm1637State *psState;
+  uint64_t u64tckStart;
+} SReadyCbParam;
 
 // ================ Local function declarations =================
 static void _rmttm1637_ready(void *pvParam);
@@ -47,16 +51,20 @@ const uint16_t gu16Tim00Divisor = TIM0_0_DIVISOR;
 const uint64_t gu64tckSchedulePeriod = (CLK_FREQ_HZ / SCHEDULE_FREQ_HZ);
 
 // ==================== Local Data ================
-const uint8_t gau8NumToSeg[] = {0x3f, 0x06, 0x5b, 0x4f, 0x66, 0x6d, 0x7d, 0x07, 0x7f, 0x6f, 0x77, 0x7c, 0x39, 0x5e, 0x79, 0x71};
-static STm1637State gsTm1637State;
 static const TimerId gsTimer = {.eTimg = TIMG_0, .eTimer = TIMER0};
-static uint64_t gu64TckStart;
+const uint8_t gau8NumToSeg[] = {0x3f, 0x06, 0x5b, 0x4f, 0x66, 0x6d, 0x7d, 0x07, 0x7f, 0x6f, 0x77, 0x7c, 0x39, 0x5e, 0x79, 0x71};
+
+static STm1637State gsTm1637State;
+static SReadyCbParam gsReadyData;
+
 // ==================== Implementation ================
 
 static void _rmttm1637_ready(void *pvParam) {
-  STm1637State *psParam = (STm1637State*) pvParam;
+  SReadyCbParam *psParam = (SReadyCbParam*) pvParam;
   uint64_t u64TckStop = timg_ticks(gsTimer);
-  uart_printf(&gsUART0, "Hello (%08X) %d ns\n", psParam->u32Internals, TICKS2NS((uint32_t) (u64TckStop - gu64TckStart)));
+  uart_printf(&gsUART0, "Display ready (failed ACKs: %08X)\tDt: %d ns\n",
+          psParam->psState->u32Internals,
+          TICKS2NS((uint32_t) (u64TckStop - psParam->u64tckStart)));
 }
 
 static void _rmttm1637_init() {
@@ -65,9 +73,8 @@ static void _rmttm1637_init() {
   STm1637Iface sIface = { CLK_GPIO, DIO_GPIO, CLK_CH, DIO_CH};
   gsTm1637State = tm1637_config(&sIface);
   tm1637_init(&gsTm1637State, APB_FREQ_HZ);
-  tm1637_set_readycb(&gsTm1637State, _rmttm1637_ready, &gsTm1637State);
-  gpio_pin_enable(2);
-  gpio_pin_out_on(2);
+  tm1637_set_readycb(&gsTm1637State, _rmttm1637_ready, &gsReadyData);
+  gsReadyData.psState = &gsTm1637State;
   rmt_isr_start(CPU_PRO, RMTINT_CH);
 }
 
@@ -88,7 +95,7 @@ static void _rmttm1637_cycle(uint64_t u64Ticks) {
       au8Data[i] = gau8NumToSeg[u8DatIdx] | (bDot ? 0x80 : 0x00);
     }
     tm1637_set_data(&gsTm1637State, au8Data);
-    gu64TckStart = timg_ticks(gsTimer);
+    gsReadyData.u64tckStart = timg_ticks(gsTimer);
     tm1637_display(&gsTm1637State);
 
     // jump to next state

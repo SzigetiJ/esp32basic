@@ -12,17 +12,20 @@
 #include "gpio.h"
 #include "rmt.h"
 #include "tm1637.h"
-
+#include "utils/uartutils.h"
 // Timings
 /*
- * Timing table (with CLK_PERIOD_TICKS=6 the full data transmission length is 411 RMT cycles)
- * RMT_FREQ     TM1637_FREQ   Full transmission time
- * 1 MHz        166 KHz       411 µs
- * 2 MHz        333 KHz       205 µs
- * 2.5 MHz      416 KHz       164 µs
- * 3 MHz        500 KHz       137 µs
- * 3.2 MHz      533 KHz       129 µs
- * 4 MHz        666 KHz       103 µs
+ * Timing table (The full data transmission length is 7*(9*(CLK_PERIOD_TICKS)-2)+3*(8+CLK_HALFPERIOD_TICKS))
+ * A: with CLK_PERIOD_TICKS=6 the full length is 397 RMT cycles
+ * B: with CLK_PERIOD_TICKS=8 the full length is 528 RMT cycles
+ * RMT_FREQ     TM1637_FREQ(A)  dt(A)     TM1637_FREQ(B)  dt(B)
+ * 1 MHz        166 KHz         397 µs    125 KHz         528 µs
+ * 2 MHz        333 KHz         198 µs    250 KHz         274 µs
+ * 2.5 MHz      416 KHz         159 µs
+ * 3 MHz        500 KHz         133 µs
+ * 3.2 MHz      533 KHz         124 µs
+ * 4 MHz        666 KHz         100 µs    500 KHz         132 µs
+ * 5 MHz                                  625 KHz         106 µs
  */
 #define RMT_FREQ_KHZ     3000U
 #define CLK_PERIOD_TICKS 6U
@@ -39,18 +42,18 @@
 // ================= Internal Types ==================
 
 typedef struct {
-  uint16_t au16Dat[SEQUENCE_SIZE];
+  RegAddr prDat;
   uint8_t u8Idx;
-} S_RMT_SEQUENCE;
+} SRmtRamWriter;
 
 // ================ Local function declarations =================
 // Internal function declarations
-static inline S_RMT_SEQUENCE *seq_reset_(S_RMT_SEQUENCE *psSeq);
-static inline S_RMT_SEQUENCE *seq_append_(S_RMT_SEQUENCE *psSeq, uint16_t u16Value);
-static void gen_endseq(S_RMT_SEQUENCE *psClkSeq, S_RMT_SEQUENCE *psDioSeq);
-static void gen_writebyteseq(S_RMT_SEQUENCE *psClkSeq, S_RMT_SEQUENCE *psDioSeq, uint8_t u8Dat);
-static void gen_startseq(S_RMT_SEQUENCE *psClkSeq, S_RMT_SEQUENCE *psDioSeq);
-static void gen_stopseq(S_RMT_SEQUENCE *psClkSeq, S_RMT_SEQUENCE *psDioSeq);
+static inline SRmtRamWriter _seq_init(RegAddr prBase);
+static inline SRmtRamWriter *_seq_append(SRmtRamWriter *psSeq, uint16_t u16ValLo, uint16_t u16ValHi);
+static void gen_endseq(SRmtRamWriter *psClkSeq, SRmtRamWriter *psDioSeq);
+static void gen_writebyteseq(SRmtRamWriter *psClkSeq, SRmtRamWriter *psDioSeq, uint8_t u8Dat);
+static void gen_startseq(SRmtRamWriter *psClkSeq, SRmtRamWriter *psDioSeq);
+static void gen_stopseq(SRmtRamWriter *psClkSeq, SRmtRamWriter *psDioSeq);
 static void _clktxend_isr(void *pvParam);
 static void _reset_state(STm1637State *psState);
 static void _next_byte(void *pvParam);
@@ -62,62 +65,63 @@ static void _next_byte(void *pvParam);
 // ==================== Implementation ================
 
 /**
- * Simply resets the write cursor of the sequence.
- * @param psSeq
- * @return 
+ * Initializes object.
+ * @param prBase RMT RAM block base address
+ * @return Initialized object.
  */
-static inline S_RMT_SEQUENCE *seq_reset_(S_RMT_SEQUENCE *psSeq) {
-  psSeq->u8Idx = 0;
-  return psSeq;
+static inline SRmtRamWriter _seq_init(RegAddr prBase) {
+  return (SRmtRamWriter){.prDat = prBase, .u8Idx = 0};
 }
 
 /**
- * Appends a single entry to the sequence.
- * @param psSeq
- * @param u16Value
- * @return 
+ * Writes RMT entry pair into RMT RAM at the current offset.
+ * @param psSeq RMT RAM cursor.
+ * @param u16ValLo First entry.
+ * @param u16ValHi Second entry.
+ * @return Updated RMT RAM cursor (offset increased).
  */
-static inline S_RMT_SEQUENCE *seq_append_(S_RMT_SEQUENCE *psSeq, uint16_t u16Value) {
-  psSeq->au16Dat[psSeq->u8Idx++] = u16Value;
+static inline SRmtRamWriter *_seq_append(SRmtRamWriter *psSeq, uint16_t u16ValLo, uint16_t u16ValHi) {
+  psSeq->prDat[psSeq->u8Idx++] = u16ValLo | (u16ValHi<<16);
   return psSeq;
 }
 
 /**
  * In RMT RAM the TX entry sequence must be terminated by a 0 long entry.
- * This function additionally guarranties that there will be even number of RMT RAM entries
- * in both Clk and Dio RMT RAM.
  * @param psClkSeq
  * @param psDioSeq
  */
-static void gen_endseq(S_RMT_SEQUENCE *psClkSeq, S_RMT_SEQUENCE *psDioSeq) {
-  if (seq_append_(psClkSeq, 0)->u8Idx & 1) {
-    seq_append_(psClkSeq, 0);
-  }
-  if (seq_append_(psDioSeq, 0)->u8Idx & 1) {
-    seq_append_(psDioSeq, 0);
-  }
+static void gen_endseq(SRmtRamWriter *psClkSeq, SRmtRamWriter *psDioSeq) {
+  _seq_append(psClkSeq, 0, 0);
+  _seq_append(psDioSeq, 0, 0);
 }
-
 /**
  * PreCond: CLK and DIO are synchronous (c:HI. d:?/LO)
  * At return CLK is at the end of the ACK bit,
  * whereas DIO is just behind the 8th bit (c:HI, d:??).
  * Internally DIO is delayed so that DIO level changes occur when CLK is LO.
- * CLK: {LLLHHH}*9, DIO: L{XXXXXX}*8.
+ * CLK: {LLHHH}{LLLHHH}*7{LLLHH}, DIO: {XXXXXX}*8.
  * @param psClkSeq
  * @param psDioSeq
  * @param u8Dat
  */
-static void gen_writebyteseq(S_RMT_SEQUENCE *psClkSeq, S_RMT_SEQUENCE *psDioSeq, uint8_t u8Dat) {
-  seq_append_(psDioSeq, RMT_SIGNAL0 | (DIO_DELAY_TICKS));
-  for (int i = 0; i < 9; i++) {
-    seq_append_(psClkSeq, RMT_SIGNAL0 | (CLK_HALFPERIOD_TICKS));
-    seq_append_(psClkSeq, RMT_SIGNAL1 | (CLK_HALFPERIOD_TICKS));
+static void gen_writebyteseq(SRmtRamWriter *psClkSeq, SRmtRamWriter *psDioSeq, uint8_t u8Dat) {
+  _seq_append(psClkSeq,
+          RMT_SIGNAL0 | (CLK_HALFPERIOD_TICKS - DIO_DELAY_TICKS),
+          RMT_SIGNAL1 | (CLK_HALFPERIOD_TICKS));
+  for (int i = 1; i < 8; i++) {
+    _seq_append(psClkSeq,
+            RMT_SIGNAL0 | (CLK_HALFPERIOD_TICKS),
+            RMT_SIGNAL1 | (CLK_HALFPERIOD_TICKS));
+  }
+  _seq_append(psClkSeq,
+          RMT_SIGNAL0 | (CLK_HALFPERIOD_TICKS),
+          RMT_SIGNAL1 | (CLK_HALFPERIOD_TICKS - DIO_DELAY_TICKS));
 
-    if (i < 8) {
-      seq_append_(psDioSeq, ((u8Dat & 0x01) ? RMT_SIGNAL1 : RMT_SIGNAL0) | (CLK_PERIOD_TICKS));
-    }
-    u8Dat >>= 1;
+  for (int i = 0; i < 4; ++i) {
+    _seq_append(psDioSeq,
+            ((u8Dat & 0x01) ? RMT_SIGNAL1 : RMT_SIGNAL0) | (CLK_PERIOD_TICKS),
+            ((u8Dat & 0x02) ? RMT_SIGNAL1 : RMT_SIGNAL0) | (CLK_PERIOD_TICKS));
+    u8Dat >>= 2;
   }
 }
 
@@ -128,12 +132,14 @@ static void gen_writebyteseq(S_RMT_SEQUENCE *psClkSeq, S_RMT_SEQUENCE *psDioSeq,
  * @param psClkSeq
  * @param psDioSeq
  */
-static void gen_startseq(S_RMT_SEQUENCE *psClkSeq, S_RMT_SEQUENCE *psDioSeq) {
+static void gen_startseq(SRmtRamWriter *psClkSeq, SRmtRamWriter *psDioSeq) {
 
-  seq_append_(psClkSeq, RMT_SIGNAL1 | (PREDIO_TICKS + PRECLK_TICKS));
-
-  seq_append_(psDioSeq, RMT_SIGNAL1 | (PREDIO_TICKS));
-  seq_append_(psDioSeq, RMT_SIGNAL0 | (PRECLK_TICKS));
+  _seq_append(psClkSeq,
+          RMT_SIGNAL1 | (PREDIO_TICKS),
+          RMT_SIGNAL1 | (PRECLK_TICKS));
+  _seq_append(psDioSeq,
+          RMT_SIGNAL1 | (PREDIO_TICKS),
+          RMT_SIGNAL0 | (PRECLK_TICKS));
 }
 
 /**
@@ -143,13 +149,14 @@ static void gen_startseq(S_RMT_SEQUENCE *psClkSeq, S_RMT_SEQUENCE *psDioSeq) {
  * @param psClkSeq
  * @param psDioSeq
  */
-static void gen_stopseq(S_RMT_SEQUENCE *psClkSeq, S_RMT_SEQUENCE *psDioSeq) {
+static void gen_stopseq(SRmtRamWriter *psClkSeq, SRmtRamWriter *psDioSeq) {
 
-  seq_append_(psClkSeq, RMT_SIGNAL0 | (CLK_HALFPERIOD_TICKS));
-  seq_append_(psClkSeq, RMT_SIGNAL1 | (PREDIO_TICKS + PRECLK_TICKS));
-
-  seq_append_(psDioSeq, RMT_SIGNAL0 | (CLK_HALFPERIOD_TICKS + DIO_DELAY_TICKS));
-  seq_append_(psDioSeq, RMT_SIGNAL1 | (PREDIO_TICKS + PRECLK_TICKS - DIO_DELAY_TICKS));
+  _seq_append(psClkSeq,
+          RMT_SIGNAL0 | (CLK_HALFPERIOD_TICKS),
+          RMT_SIGNAL1 | (PREDIO_TICKS + PRECLK_TICKS));
+  _seq_append(psDioSeq,
+          RMT_SIGNAL0 | (CLK_HALFPERIOD_TICKS + DIO_DELAY_TICKS),
+          RMT_SIGNAL1 | (PREDIO_TICKS + PRECLK_TICKS - DIO_DELAY_TICKS));
 }
 
 /**
@@ -160,6 +167,7 @@ static void gen_stopseq(S_RMT_SEQUENCE *psClkSeq, S_RMT_SEQUENCE *psDioSeq) {
  */
 static void IRAM_ATTR _clktxend_isr(void *pvParam) {
   STm1637State *psParam = (STm1637State*) pvParam;
+//  uart_printf(&gsUART0, "S%08X ",gpsRMT->asStatus[psParam->sIface.eClkCh]);
 
   if (TM1637_DATA_LEN < psParam->nDataI) {
     psParam->fReadyCb(psParam->pvReadyCbArg);
@@ -182,16 +190,13 @@ static void IRAM_ATTR _clktxend_isr(void *pvParam) {
  */
 static void _next_byte(void *pvParam) {
   STm1637State *psParam = (STm1637State*) pvParam;
-  S_RMT_SEQUENCE sClkSeq;
-  S_RMT_SEQUENCE sDioSeq;
+  SRmtRamWriter sClkSeq = _seq_init(rmt_ram_addr(psParam->sIface.eClkCh, 1, 0));
+  SRmtRamWriter sDioSeq = _seq_init(rmt_ram_addr(psParam->sIface.eDioCh, 1, 0));
 
   bool bFirst = (psParam->nDataI == 0);     // first run CmdStart is not preceeded by CmdStop
   bool bDone = (psParam->nDataI == TM1637_DATA_LEN);
   bool bCmdStart = (psParam->nCmdIdxI < TM1637_CMDIDX_LEN && psParam->anCmdIdx[psParam->nCmdIdxI] == psParam->nDataI);
   bool bCmdStop = !bFirst && (bCmdStart || bDone);
-
-  seq_reset_(&sClkSeq);
-  seq_reset_(&sDioSeq);
 
   if (bCmdStop) {
     gen_stopseq(&sClkSeq, &sDioSeq);
@@ -204,9 +209,6 @@ static void _next_byte(void *pvParam) {
     gen_writebyteseq(&sClkSeq, &sDioSeq, psParam->au8Data[psParam->nDataI]);
   }
   gen_endseq(&sClkSeq, &sDioSeq);
-
-  memcpy((void*) rmt_ram_addr(psParam->sIface.eClkCh, 1, 0), (void*) sClkSeq.au16Dat, 2 * sClkSeq.u8Idx);
-  memcpy((void*) rmt_ram_addr(psParam->sIface.eDioCh, 1, 0), (void*) sDioSeq.au16Dat, 2 * sDioSeq.u8Idx);
 
   ++psParam->nDataI;
 
