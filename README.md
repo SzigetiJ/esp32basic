@@ -83,12 +83,14 @@ THis list is supposed to grow longer and longer.
 * Low level peripheral access (via registers).
 * Peripheral controller drivers
   * I2C
-  * RMT (TODO: example on RX)
+  * RMT
   * _TODO_ SPI
   * _TODO_ etc.
 * Device drivers
   * BME280 Temperature / Pressure / Humidity sensor
   * (_TODO_: cleanup) BH1750 Light sensor
+  * DHT22 Temperature / Humidity sensor
+  * TM1637 4x7 segment display
   * WS2812B LED strip
 * etc (_TODO_)
 
@@ -119,6 +121,6 @@ Feel free to fork this project and play around with it integrating your own sens
 
 ## About license
 
-The memory arrangement (see esp32.ld) and start-up code (main.c) is based on [esp32-minimal](https://github.com/aykevl/esp32-minimal).
-This project also contains code (see xtutils.h) directly taken from the official [ESP32 SDK](https://github.com/espressif/esp-idf),
+The memory arrangement (see [esp32.ld](ld/esp32.ld)) and start-up code ([main.c](src/main.c)) is based on [esp32-minimal](https://github.com/aykevl/esp32-minimal).
+This project also contains code (see [xtutils.h](src/xtutils.h)) directly taken from the official [ESP32 SDK](https://github.com/espressif/esp-idf),
 which is released under Apache-2.0.

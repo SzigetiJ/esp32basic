@@ -78,6 +78,30 @@ extern "C" {
     return &gsGPIO;
   }
 
+  /**
+   * Tells the register of any gpio pin in range [0..39].
+   * Generally, there is a base register for gpio pins [0..31],
+   * and there is another register for pins [32..39].
+   * This second register is either directly after the base register, e.g., .IN1 follows .IN,
+   * or a group of base register is followed by a group of second registers, e.g., OUT, OUT_W1TS, OUT_W1TC followed by their pairs.
+   * @param prRegBase Base register.
+   * @param u8Shift Difference between the base and the second register addresses (measured in register width).
+   * @param u8Pin GPIO pin. The only thing that matters here is whether u8Pin is less than 32 or not.
+   * @return Register to use for the given GPIO pin.
+   */
+  static inline RegAddr gpio_reg_anypin(RegAddr prRegBase, uint8_t u8Shift, uint8_t u8Pin) {
+    return prRegBase + (u8Pin < 32 ? 0 : u8Shift);
+  }
+
+  static inline uint8_t gpio_pin_read(uint8_t u8Pin) {
+    return 0 < (*gpio_reg_anypin(&gsGPIO.IN, 1, u8Pin) & (1 << (u8Pin & 0x1f)));
+  }
+
+  /**
+   * Provides bit access for GPIO pins in range [0..39] for the following register groups: OUT, ENABLE, STATUS
+   * @param prReg Base register, e.g., OUT, OUT_W1TS, OUT_W1TS, etc.
+   * @param u8Pin GPIO pin.
+   */
   static inline void gpio_reg_setbit(RegAddr prReg, uint8_t u8Pin) {
     prReg[u8Pin < 32 ? 0 : 3] = 1 << (u8Pin & 0x1f);
   }

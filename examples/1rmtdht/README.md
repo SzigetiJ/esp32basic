@@ -12,9 +12,9 @@ The 1-wire protocol is implemented in `modules/dht22.c`.
 #### Connections
 
 ```
-ESP32.GPIO2 -- S1.OUT
-ESP32.GND   -- S1.-
-ESP32.VCC   -- S1.+
+ESP32.GPIO21 -- S1.OUT
+ESP32.GND    -- S1.-
+ESP32.VCC    -- S1.+
 ```
 
 #### Practices
