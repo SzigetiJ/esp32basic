@@ -241,7 +241,7 @@ static void _buf_update_cycle(uint64_t u64Ticks) {
 
 void prog_init_pro_pre() {
   // we do some logging, hence set UART0 speed
-  gsUART0.CLKDIV = APB_FREQ_HZ / 115200;
+  gsUART0.CLKDIV.u20ClkDiv = APB_FREQ_HZ / 115200;
 
   _rmtws2812_init_data();
   _rmtws2812_init_peripheral();

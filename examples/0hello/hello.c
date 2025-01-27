@@ -42,7 +42,7 @@ static UART_Type *gpsUART0 = &gsUART0;
 // Implementation
 
 static void _uart_init() {
-  gpsUART0->CLKDIV = APB_FREQ_HZ / UART_FREQ_HZ;
+  gpsUART0->CLKDIV.u20ClkDiv = APB_FREQ_HZ / UART_FREQ_HZ;
 }
 
 static void _print_cycle(uint64_t u64Ticks) {

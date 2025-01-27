@@ -264,7 +264,7 @@ static void _init_drivers() {
 }
 
 static void _init_uart() {
-  gpsUART0->CLKDIV = APB_FREQ_HZ / UART_FREQ_HZ;
+  gpsUART0->CLKDIV.u20ClkDiv = APB_FREQ_HZ / UART_FREQ_HZ;
 }
 
 // TODO: make it an ISR and attach to I2C INT

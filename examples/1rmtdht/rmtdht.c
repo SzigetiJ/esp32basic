@@ -90,7 +90,7 @@ static void _rmtdht_cycle(uint64_t u64Ticks) {
 // ====================== Interface functions =========================
 
 void prog_init_pro_pre() {
-  gsUART0.CLKDIV = APB_FREQ_HZ / 115200;
+  gsUART0.CLKDIV.u20ClkDiv = APB_FREQ_HZ / 115200;
 
   _rmtdht_init();
 }

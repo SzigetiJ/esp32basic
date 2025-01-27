@@ -16,13 +16,23 @@ extern "C" {
   // Based on:
   // https://github.com/espressif/esp-idf/blob/6b3da6b188/components/soc/esp32/include/soc/uart_reg.h
 
+  typedef volatile union {
+
+    volatile struct {
+      uint32_t u20ClkDiv : 20;   ///< Integral part of the divisor
+      uint32_t u4ClkDivFrag : 4;  ///< Decimal part of the divisor
+      uint32_t rsvd24 : 8;
+    };
+    volatile uint32_t raw;
+  } SUartDivReg;
+
   typedef struct {
     Reg FIFO; // 0..7
     Reg INT_RAW;
     Reg INT_ST;
     Reg INT_ENA;
     Reg INT_CLR; // 0x10
-    Reg CLKDIV; // 0..19: integral part, 20..23: decimal part
+    SUartDivReg CLKDIV;
     Reg AUTOBAUD;
     Reg STATUS;
     Reg CONF0; // 0x20

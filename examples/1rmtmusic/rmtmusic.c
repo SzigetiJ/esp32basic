@@ -261,7 +261,7 @@ static void _rmtmusic_init() {
   _rmt_config_channel(RMTMUSIC_CH, 0, 0);
 
   // we do some logging, hence set UART0 speed
-  gsUART0.CLKDIV = APB_FREQ_HZ / 115200;
+  gsUART0.CLKDIV.u20ClkDiv = APB_FREQ_HZ / 115200;
 
   // register ISR and enable it
   rmt_isr_init();
