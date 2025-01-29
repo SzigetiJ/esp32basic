@@ -82,11 +82,12 @@ static void _rxstart(void *pvParam) {
 
 static void _rxready(void *pvParam) {
   SDht22Descriptor *psParam = (SDht22Descriptor*)pvParam;
-
-  RegAddr prData = rmt_ram_addr(psParam->eChannel, 1, 0);
-  uint32_t u32RecvSize = gpsRMT->asStatus[psParam->eChannel].u9RxIdx;
-  uint32_t u32DataOfs = u32RecvSize - (DHT22_DATA_LEN * 8) - 1;
-  bool bLowEnd = (prData[u32RecvSize - 1] & RMT_ENTRYMAX) == 0;
+  // Note, here we use _absolute_ RMT RAM addresses.
+  // This works fine since the received data fits into a single RMT RAM block.
+  RegAddr prData = rmt_ram_block(RMT_CH0);
+  uint32_t u32RecvEnd = gpsRMT->asStatus[psParam->eChannel].u9RxIdx;
+  uint32_t u32DataOfs = u32RecvEnd - (DHT22_DATA_LEN * 8) - 1;
+  bool bLowEnd = (prData[u32RecvEnd - 1] & RMT_ENTRYMAX) == 0;
   uint8_t u8Shr = bLowEnd ? 0 : 16;
 
   memset(&psParam->sData, 0, sizeof (psParam->sData));
