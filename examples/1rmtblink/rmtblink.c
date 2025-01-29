@@ -67,7 +67,7 @@ static void _rmt_config_channel(ERmtChannel eChannel, bool bLevel, bool bHoldLev
   };
   gpsRMT->asChConf[eChannel] = rChConf;
 
-  gpsRMT->arTxLim[eChannel].u9Val = 256; // currently unused
+  gpsRMT->arTxLim[eChannel].raw = RMT_TXLIM_MAX_VAL << RMT_TXLIM_BIT_VAL;
 }
 
 static void _rmtblink_init() {

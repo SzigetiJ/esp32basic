@@ -72,7 +72,7 @@ static void _rmt_config_channel(const SWs2812Iface *psIface, uint8_t u8Divisor) 
     gpsRMT->asChConf[(psIface->eChannel + i) % RMT_CHANNEL_NUM].r1.raw &= sRdMemCfg.raw;
   }
 
-  gpsRMT->arTxLim[psIface->eChannel].u9Val = (psIface->u8Blocks * RMT_RAM_BLOCK_SIZE) / 2;
+  gpsRMT->arTxLim[psIface->eChannel].raw = ((psIface->u8Blocks * RMT_RAM_BLOCK_SIZE) / 2) << RMT_TXLIM_BIT_VAL;
 }
 
 /**

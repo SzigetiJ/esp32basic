@@ -26,13 +26,16 @@ extern "C" {
     volatile uint32_t raw;
   } SUartDivReg;
 
+#define UART_CLKDIV_BIT_DIV 0
+#define UART_CLKDIV_BIT_FRAG 20
+
   typedef struct {
     Reg FIFO; // 0..7
     Reg INT_RAW;
     Reg INT_ST;
     Reg INT_ENA;
     Reg INT_CLR; // 0x10
-    SUartDivReg CLKDIV;
+    Reg CLKDIV;
     Reg AUTOBAUD;
     Reg STATUS;
     Reg CONF0; // 0x20

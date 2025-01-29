@@ -55,7 +55,15 @@ static void _init_rtc() {
   //   5-4:   RTC_CNTL_CK8M_DIV:          1 (default)
   // The only real change made here is modifying RTC_CNTL_SOC_CLK_SEL, but
   // setting a fixed value produces smaller code.
-  gpsRTC->CLK_CONF = (1 << 27) | (2 << 12) | (1 << 9) | (4 << 1);
+  gpsRTC->CLK_CONF = (RTCCLKSRC_PLL << 27) | (2 << 12) | (1 << 9) | (4 << 1);
+
+  //  SRtcClkConf sRtcClkConf = {.raw = 0};
+//  sRtcClkConf.e2SocClkSel = RTCCLKSRC_PLL;
+//  sRtcClkConf.u3Ck8mDivSel = 2;
+//  sRtcClkConf.bDigClk8mD256En = 1;
+//  sRtcClkConf.u2Ck8mDiv = 1;
+//  gpsRTC->CLK_CONF = sRtcClkConf;
+//  gpsRTC->CLK_CONF.e2SocClkSel = RTCCLKSRC_PLL;
 
   // Switch CPU from 80MHz to 160MHz. This doesn't affect the APB clock,
   // which is still running at 80MHz.

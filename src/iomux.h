@@ -14,6 +14,17 @@ extern "C" {
 #include "esp32types.h"
 
   /// IOMUX GPIO configuration register structure.
+#define IOMUX_GPIOCONF_BIT_MCUOE 0
+#define IOMUX_GPIOCONF_BIT_SLPSEL 1
+#define IOMUX_GPIOCONF_BIT_MCUWPD 2
+#define IOMUX_GPIOCONF_BIT_MCUWPU 3
+#define IOMUX_GPIOCONF_BIT_MCUIE 4
+#define IOMUX_GPIOCONF_BIT_MCUDRV 5
+#define IOMUX_GPIOCONF_BIT_FUNWPD 7
+#define IOMUX_GPIOCONF_BIT_FUNWPU 8
+#define IOMUX_GPIOCONF_BIT_FUNIE 9
+#define IOMUX_GPIOCONF_BIT_FUNDRV 10
+#define IOMUX_GPIOCONF_BIT_MCUSEL 12
 
   typedef volatile union {
 

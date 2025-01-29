@@ -129,8 +129,7 @@ static void _rmt_config_channel(ERmtChannel eChannel, bool bLevel, bool bHoldLev
   gpsRMT->asChConf[eChannel] = rChConf;
 
   if (CARRIER_EN) {
-    SRmtChCarrierDutyReg rChCarr = {.u16High = CARRIER_HI_TCK, .u16Low = CARRIER_LO_TCK};
-    gpsRMT->arCarrierDuty[eChannel] = rChCarr;
+    gpsRMT->arCarrierDuty[eChannel].raw = CARRIER_HI_TCK << RMT_CARRIERDUTY_BIT_HIGH | CARRIER_LO_TCK << RMT_CARRIERDUTY_BIT_LOW;
   }
 
   // set memory ownership of RMT RAM blocks
@@ -140,7 +139,7 @@ static void _rmt_config_channel(ERmtChannel eChannel, bool bLevel, bool bHoldLev
     gpsRMT->asChConf[(eChannel + i) % RMT_CHANNEL_NUM].r1.raw &= sRdMemCfg.raw;
   }
 
-  gpsRMT->arTxLim[eChannel].u9Val = RMT_TXLIM; // half of the memory block
+  gpsRMT->arTxLim[eChannel].raw = RMT_TXLIM << RMT_TXLIM_BIT_VAL;
 
   // Note: in this example we do not register ISRs
   // _rmtmorse_cycle() is responsible for checking and clearing RMT_INT status bits.
@@ -156,7 +155,7 @@ static void _rmtmorse_init() {
   _rmt_config_channel(RMTMORSE_CH, 0, 0);
 
   // we do some logging, hence set UART0 speed
-  gsUART0.CLKDIV.u20ClkDiv = APB_FREQ_HZ / 115200;
+  gsUART0.CLKDIV = APB_FREQ_HZ / 115200;
 }
 
 static void _rmtmorse_cycle(uint64_t u64Ticks) {

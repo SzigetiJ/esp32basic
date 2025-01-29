@@ -71,7 +71,7 @@ static void _rmt_config_channel(ERmtChannel eChannel, uint8_t u8Divisor) {
   };
   gpsRMT->asChConf[eChannel] = rChConf;
 
-  gpsRMT->arTxLim[eChannel].u9Val = 256; // currently unused
+  gpsRMT->arTxLim[eChannel].raw = RMT_TXLIM_MAX_VAL << RMT_TXLIM_BIT_VAL;
 }
 
 static void _rxstart(void *pvParam) {
@@ -138,9 +138,7 @@ void dht22_init(uint8_t u8Pin, uint32_t u32ApbClkFreq, SDht22Descriptor *psDht22
 void dht22_run(SDht22Descriptor *psDht22Desc) {
   static const uint32_t u32Tx0 = (RMT_SIGNAL0 | US_TO_RMTCLK(DHT_HOSTPULLDOWN_IVAL_US)) | (RMT_SIGNAL1 << 16);
 
-  SRmtChConf1Reg sConf1 = {.raw = 0};
-  sConf1.bMemOwner = 1;
-  gsRMT.asChConf[psDht22Desc->eChannel].r1.raw |= sConf1.raw;
+  gsRMT.asChConf[psDht22Desc->eChannel].r1.raw |= 1 << RMT_CONF1_SHL_MemOwner;
 
   rmt_ram_addr(psDht22Desc->eChannel, 1, 0)[0] = u32Tx0;
 

@@ -66,6 +66,18 @@ extern "C" {
     volatile uint32_t raw;
   } SRmtChConf0Reg;
 
+  // widths
+#define RMT_CONF0_W_DIVCNT 8
+#define RMT_CONF0_W_IDLETHRES 16
+#define RMT_CONF0_W_MEMSIZE 4
+  // offsets
+#define RMT_CONF0_SHL_DIVCNT 0
+#define RMT_CONF0_SHL_IDLETHRES 8
+#define RMT_CONF0_SHL_MEMSIZE 24
+#define RMT_CONF0_SHL_CARRIEREN 28
+#define RMT_CONF0_SHL_CARRIEROUTLVL 29
+#define RMT_CONF0_SHL_MEMPD 30
+
   typedef volatile union {
 
     volatile struct {
@@ -89,6 +101,21 @@ extern "C" {
     volatile uint32_t raw;
   } SRmtChConf1Reg;
 
+#define RMT_CONF1_W_FilterThres 8
+#define RMT_CONF1_SHL_TxStart 0
+#define RMT_CONF1_SHL_RxEn 1
+#define RMT_CONF1_SHL_MemWrRst 2
+#define RMT_CONF1_SHL_MemRdRst 3
+#define RMT_CONF1_SHL_FifoRst 4
+#define RMT_CONF1_SHL_MemOwner 5
+#define RMT_CONF1_SHL_TxContMode 6
+#define RMT_CONF1_SHL_RxFilterEn 7
+#define RMT_CONF1_SHL_RxFilterThres 8
+#define RMT_CONF1_SHL_RefCntRst 16
+#define RMT_CONF1_SHL_RefAlwaysOn 17
+#define RMT_CONF1_SHL_IdleOutLvl 18
+#define RMT_CONF1_SHL_IdleOutEn 19
+
   typedef struct {
     SRmtChConf0Reg r0;
     SRmtChConf1Reg r1;
@@ -103,6 +130,9 @@ extern "C" {
     volatile uint32_t raw;
   } SRmtChCarrierDutyReg;
 
+#define RMT_CARRIERDUTY_BIT_LOW 0
+#define RMT_CARRIERDUTY_BIT_HIGH 16
+
   typedef union {
 
     volatile struct {
@@ -111,16 +141,11 @@ extern "C" {
     };
     volatile uint32_t raw;
   } SRmtChTxLimReg;
+#define RMT_TXLIM_BIT_VAL 0
+#define RMT_TXLIM_MAX_VAL 511
 
-  typedef union {
-
-    volatile struct {
-      uint32_t bMemAccessEn : 1; ///< Direct (1) / FIFO (0) access of RMT RAM.
-      uint32_t bMemTxWrapEn : 1; ///< Enable/disable TX wraparound.
-      uint32_t rsvd2 : 30;
-    };
-    volatile uint32_t raw;
-  } SRmtApbConfReg;
+#define RMT_APBCONF_BIT_MEMACCESSEN 0
+#define RMT_APBCONF_BIT_MEMTXWRAPEN 1
 
   // ---------------- undocumented register types -------------------
 
@@ -151,12 +176,11 @@ extern "C" {
     Reg arInt[4];
     SRmtChCarrierDutyReg arCarrierDuty[RMT_CHANNEL_NUM];
     SRmtChTxLimReg arTxLim[RMT_CHANNEL_NUM];
-    SRmtApbConfReg rApb;
+    Reg rApb;
     Reg rsvd61;
     Reg rsvd62;
     Reg rVersion;
   } RMT_Type;
-
   // ============== Values / References ==============
   extern RMT_Type gsRMT;
   extern Reg grRMTRAM[RMT_CHANNEL_NUM * RMT_RAM_BLOCK_SIZE];
@@ -233,8 +257,7 @@ extern "C" {
    * @param bMemRdRst Should the controller reset its memory read address for the channel.
    */
   static inline void rmt_start_tx(ERmtChannel eChannel, bool bMemRdRst) {
-    SRmtChConf1Reg rConf1 = {.bTxStart = 1, .bMemRdRst = bMemRdRst};
-    gpsRMT->asChConf[eChannel].r1.raw |= rConf1.raw;
+    gpsRMT->asChConf[eChannel].r1.raw |= 1 << RMT_CONF1_SHL_TxStart | bMemRdRst << RMT_CONF1_SHL_MemRdRst;
   }
 
   /**
@@ -243,8 +266,7 @@ extern "C" {
    * @param bMemWrRst Should the controller reset its memory write address for the channel.
    */
   static inline void rmt_start_rx(ERmtChannel eChannel, bool bMemWrRst) {
-    SRmtChConf1Reg rConf1 = {.bRxEn = 1, .bMemWrRst = bMemWrRst};
-    gpsRMT->asChConf[eChannel].r1.raw |= rConf1.raw;
+    gpsRMT->asChConf[eChannel].r1.raw |= 1 << RMT_CONF1_SHL_RxEn | bMemWrRst << RMT_CONF1_SHL_MemWrRst;
   }
 
   //#undef RMT_CHANNEL_NUM

@@ -141,8 +141,7 @@ static void _rmttm1637_cycle(uint64_t u64Ticks) {
 // ====================== Interface functions =========================
 
 void prog_init_pro_pre() {
-  gsUART0.CLKDIV.u20ClkDiv = APB_FREQ_HZ / 115200;
-  gsUART0.CLKDIV.u4ClkDivFrag = 7;
+  gsUART0.CLKDIV = APB_FREQ_HZ / 115200 | 7 << UART_CLKDIV_BIT_FRAG;
   _rmttm1637_init();
 }
 

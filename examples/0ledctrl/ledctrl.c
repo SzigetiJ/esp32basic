@@ -47,7 +47,7 @@ static void _led_init() {
 }
 
 static void _uart_init() {
-  gpsUART0->CLKDIV.u20ClkDiv = APB_FREQ_HZ / UART_FREQ_HZ;
+  gsUART0.CLKDIV = APB_FREQ_HZ / UART_FREQ_HZ;
 }
 
 static void _ledctrl_cycle(uint64_t u64Ticks) {

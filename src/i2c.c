@@ -116,7 +116,7 @@ void i2c_init_controller(EI2CBus e8Bus, uint8_t u8SclPin, uint8_t u8SdaPin, uint
   // --- func_sel()
   // FUN_WPU
   // (no pull-down) ~(1 << 7)
-  IomuxGpioConfReg rI2CConf = {.u1FunIE = 1, .u1FunWPU = 1, .u3McuSel = 2};
+  IomuxGpioConfReg rI2CConf = {.raw=1<<IOMUX_GPIOCONF_BIT_FUNIE | 1<<IOMUX_GPIOCONF_BIT_FUNWPU | 2<<IOMUX_GPIOCONF_BIT_MCUSEL};
   iomux_set_gpioconf(u8SclPin, rI2CConf);
   iomux_set_gpioconf(u8SdaPin, rI2CConf);
 

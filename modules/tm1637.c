@@ -244,12 +244,20 @@ static void _rmt_config_channel(const STm1637Iface *psIface, uint8_t u8Divisor) 
     {.bRefAlwaysOn = 1, .bRefCntRst = 1, .bMemRdRst = 1,
       .bIdleOutLvl = 1, .bIdleOutEn = 1, .bMemOwner = 0}
   };
-
   gpsRMT->asChConf[psIface->eClkCh] = rChConf;
   gpsRMT->asChConf[psIface->eDioCh] = rChConf;
 
-  gpsRMT->arTxLim[psIface->eClkCh].u9Val = 256; // currently unused
-  gpsRMT->arTxLim[psIface->eDioCh].u9Val = 256; // currently unused
+//  gpsRMT->asChConf[psIface->eClkCh].r0.raw = u8Divisor << RMT_CONF0_SHL_DIVCNT | 1 << RMT_CONF0_SHL_MEMSIZE | 1 << RMT_CONF0_SHL_CARRIEROUTLVL;
+//  gpsRMT->asChConf[psIface->eClkCh].r1.raw = 0x000F0008;
+////          1 << RMT_CONF1_SHL_RefAlwaysOn | 1 << RMT_CONF1_SHL_RefCntRst | 1 << RMT_CONF1_SHL_MemRdRst |
+////    1 << RMT_CONF1_SHL_IdleOutLvl | 1 << RMT_CONF1_SHL_IdleOutEn;
+//  gpsRMT->asChConf[psIface->eDioCh].r0.raw = u8Divisor << RMT_CONF0_SHL_DIVCNT | 1 << RMT_CONF0_SHL_MEMSIZE | 1 << RMT_CONF0_SHL_CARRIEROUTLVL;
+//  gpsRMT->asChConf[psIface->eDioCh].r1.raw = 0x000F0008;
+////  gpsRMT->asChConf[psIface->eDioCh].r1.raw = 1 << RMT_CONF1_SHL_RefAlwaysOn | 1 << RMT_CONF1_SHL_RefCntRst | 1 << RMT_CONF1_SHL_MemRdRst |
+////    1 << RMT_CONF1_SHL_IdleOutLvl | 1 << RMT_CONF1_SHL_IdleOutEn;
+
+  gpsRMT->arTxLim[psIface->eClkCh].raw = RMT_TXLIM_MAX_VAL << RMT_TXLIM_BIT_VAL;
+  gpsRMT->arTxLim[psIface->eDioCh].raw = RMT_TXLIM_MAX_VAL << RMT_TXLIM_BIT_VAL;
 }
 
 // ============== Interface functions ==============

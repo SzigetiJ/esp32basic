@@ -167,7 +167,7 @@ static uint8_t _note_to_registers(uint32_t *pu32CDuty, uint32_t *pu32RamBuf, uin
   }
   uint16_t u16High = (u32TonePeriodLen * DUTY_HI_CENT) / 100;
   uint16_t u16Low = u32TonePeriodLen - u16High;
-  *pu32CDuty = u16High << 16 | u16Low;
+  *pu32CDuty = u16High << RMT_CARRIERDUTY_BIT_HIGH | u16Low << RMT_CARRIERDUTY_BIT_LOW;
 
   // there is two phases: active (RMT output: high) and inactive (RMT output: low)
   u8Ret += _period_to_entrypair(&pu32RamBuf[u8Ret], u8BufLen - u8Ret, u32NoteHiLen, true);
@@ -190,10 +190,7 @@ static void _rmt_config_channel(ERmtChannel eChannel, bool bLevel, bool bHoldLev
   };
   gpsRMT->asChConf[eChannel] = rChConf;
 
-  {
-    SRmtChCarrierDutyReg rChCarr = {.u16High = 1000, .u16Low = 1000};
-    gpsRMT->arCarrierDuty[eChannel] = rChCarr;
-  }
+  gpsRMT->arCarrierDuty[eChannel].raw = 1000 << RMT_CARRIERDUTY_BIT_HIGH | 1000 << RMT_CARRIERDUTY_BIT_LOW;
 
   // set memory ownership of RMT RAM blocks
   SRmtChConf1Reg sRdMemCfg = {.raw = -1};
@@ -203,7 +200,7 @@ static void _rmt_config_channel(ERmtChannel eChannel, bool bLevel, bool bHoldLev
     gpsRMT->asChConf[(eChannel + i) % RMT_CHANNEL_NUM].r1.raw &= sRdMemCfg.raw;
   }
 
-  gpsRMT->arTxLim[eChannel].u9Val = RMT_TXLIM; // half of the memory block
+  gpsRMT->arTxLim[eChannel].raw = RMT_TXLIM << RMT_TXLIM_BIT_VAL;
 }
 
 IRAM_ATTR void _rmtmusic_feed(void *pvParam) {
@@ -212,7 +209,7 @@ IRAM_ATTR void _rmtmusic_feed(void *pvParam) {
   gpsRMT->arCarrierDuty[RMTMUSIC_CH].raw = psParam->u32NextDuty;
   //uint8_t u8TxLim = psParam->u8RmtRamLastLoLen + psParam->u8RmtRamCurHiLen;
   uint8_t u8TxLim = psParam->u8RmtRamCurLoLen + psParam->u8RmtRamCurHiLen;
-  gpsRMT->arTxLim[RMTMUSIC_CH].u9Val = u8TxLim;
+  gpsRMT->arTxLim[RMTMUSIC_CH].raw = u8TxLim << RMT_TXLIM_BIT_VAL;
 
   psParam->u8RmtRamLastLoLen = psParam->u8RmtRamCurLoLen;
 
@@ -261,7 +258,7 @@ static void _rmtmusic_init() {
   _rmt_config_channel(RMTMUSIC_CH, 0, 0);
 
   // we do some logging, hence set UART0 speed
-  gsUART0.CLKDIV.u20ClkDiv = APB_FREQ_HZ / 115200;
+  gsUART0.CLKDIV = APB_FREQ_HZ / 115200 | 7 << UART_CLKDIV_BIT_FRAG;
 
   // register ISR and enable it
   rmt_isr_init();
@@ -290,7 +287,7 @@ static void _rmtmusic_cycle(uint64_t u64Ticks) {
       gsMusicState.u8RmtRamLastLoLen = u8BufLen0 - u8HiLen0;
       gsMusicState.u32RmtRamFillIt = rmtutils_copytoram(RMTMUSIC_CH, RMTMUSIC_MEM_BLOCKS, 0, au32Buf, u8BufLen0);
       gpsRMT->arCarrierDuty[RMTMUSIC_CH].raw = gsMusicState.u32NextDuty;
-      gpsRMT->arTxLim[RMTMUSIC_CH].u9Val = u8HiLen0 + 2;
+      gpsRMT->arTxLim[RMTMUSIC_CH].u9Val = (u8HiLen0 + 2) << RMT_TXLIM_BIT_VAL;
 
       uint8_t u8HiLen1;
       uint8_t u8BufLen1 = _note_to_registers((uint32_t*)&gsMusicState.u32NextDuty, au32Buf, NOTE2REG_BUFSIZE, &gsMusicState.psMusic[gsMusicState.u32MusicIt++], &u8HiLen1);

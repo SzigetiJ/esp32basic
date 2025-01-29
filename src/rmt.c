@@ -104,8 +104,7 @@ void rmt_init_controller(bool bMemAccessEn, bool bMemTxWrapEn) {
   dport_regs()->PERIP_RST_EN |= 1 << DPORT_PERIP_BIT_RMT;
   dport_regs()->PERIP_RST_EN &= ~(1 << DPORT_PERIP_BIT_RMT);
 
-  SRmtApbConfReg rApbConf = {.bMemAccessEn = bMemAccessEn, .bMemTxWrapEn = bMemTxWrapEn};
-  gpsRMT->rApb = rApbConf;
+  gpsRMT->rApb = bMemAccessEn << RMT_APBCONF_BIT_MEMACCESSEN | bMemTxWrapEn << RMT_APBCONF_BIT_MEMTXWRAPEN;
 
 }
 
@@ -119,7 +118,7 @@ void rmt_init_channel(ERmtChannel eChannel, uint8_t u8Pin, bool bInitLevel) {
   // gpio & iomux
   bInitLevel ? gpio_pin_out_on(u8Pin) : gpio_pin_out_off(u8Pin); // set GPIO level when not bound to RMT (optional)
 
-  IomuxGpioConfReg rRmtConf = {.u1FunIE = 1, .u1FunWPU = 1, .u3McuSel = 2}; // input enable, pull-up, iomux function
+  IomuxGpioConfReg rRmtConf = {.raw=1<<IOMUX_GPIOCONF_BIT_FUNIE | 1<<IOMUX_GPIOCONF_BIT_FUNWPU | 2<<IOMUX_GPIOCONF_BIT_MCUSEL};
   iomux_set_gpioconf(u8Pin, rRmtConf);
 
   gpio_pin_enable(u8Pin);
