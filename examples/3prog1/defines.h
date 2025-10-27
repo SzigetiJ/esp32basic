@@ -19,7 +19,7 @@ extern "C" {
 #define TIM0_0_DIVISOR      2U
 #define START_APP_CPU       1U
 #define SCHEDULE_FREQ_HZ    10000U                  // 10KHz
-#define UART_FREQ_HZ        115200U
+#define UART0_FREQ_HZ        115200U
 
   // derived invariants
 #define CLK_FREQ_HZ         (APB_FREQ_HZ / TIM0_0_DIVISOR)  // 40 MHz

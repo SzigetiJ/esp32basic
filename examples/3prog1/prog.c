@@ -109,7 +109,7 @@ static ELockmgrResource _i2c_to_lock(EI2CBus eBus);
 static void _schedule_isr();
 static void _i2cscan_cycle(uint64_t u64Ticks);
 static void _init_drivers();
-static void _init_uart();
+static void _init_uart0();
 static void _i2c_release_cycle(uint64_t u64Ticks);
 static void _switch_leds_init(TimerId sTimer);
 static void _switch_leds_cycle(uint64_t u64Ticks);
@@ -249,8 +249,14 @@ static void _init_drivers() {
   i2c_init_controller(OLED_I2C_CH, I2C0_SCL_GPIO, I2C0_SDA_GPIO, HZ2APBTICKS(OLED_I2C_FREQ_HZ));
 }
 
-static void _init_uart() {
-  gsUART0.CLKDIV = APB_FREQ_HZ / UART_FREQ_HZ;
+static void _init_uart0() {
+#define CLKDIV_INT HZ2APBTICKS(UART0_FREQ_HZ)
+#define CLKDIV_REM (APB_FREQ_HZ - (CLKDIV_INT * UART0_FREQ_HZ))
+#define CLKDIV_FRAG ((16U * CLKDIV_REM) / UART0_FREQ_HZ)
+  gsUART0.CLKDIV = CLKDIV_INT | (CLKDIV_FRAG << UART_CLKDIV_BIT_FRAG);
+#undef CLKDIV_FRAG
+#undef CLKDIV_REM
+#undef CLKDIV_INT
 }
 
 // TODO: make it an ISR and attach to I2C INT
@@ -596,7 +602,7 @@ static void _schedule_isr() {
 // ====================== Interface functions =========================
 
 void prog_init_pro_pre() {
-  _init_uart();
+  _init_uart0();
   _schedule_isr();
 }
 
