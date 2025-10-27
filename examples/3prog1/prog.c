@@ -29,6 +29,7 @@
 #include "bme280.h"
 #include "bh1750.h"
 #include "utils/i2cutils.h"
+#include "utils/uartutils.h"
 
 // =================== Hard constants =================
 // #1: Timings
@@ -102,7 +103,6 @@ typedef struct {
 } PeriodicCallbackDesc;
 
 // ================ Local function declarations =================
-static void _uart_println(const char *pcPrefix, const char *pcLine, uint8_t u8Len);
 static void _flush_message(uint64_t u64tckTimestamp);
 static void _alternate_value(void *pvParam);
 static ELockmgrResource _i2c_to_lock(EI2CBus eBus);
@@ -171,20 +171,6 @@ static PeriodicCallbackDesc gsPCbDesc = {
 };
 
 
-// Implementation
-
-static void _uart_println(const char *pcPrefix, const char *pcLine, uint8_t u8Len) {
-  uint32_t u32PfxLen = strlen(pcPrefix);
-  for (int i = 0; i < u32PfxLen; ++i) {
-    gpsUART0->FIFO = pcPrefix[i];
-  }
-  for (int i = 0; i < u8Len; ++i) {
-    gpsUART0->FIFO = pcLine[i];
-  }
-  gpsUART0->FIFO = '\r';
-  gpsUART0->FIFO = '\n';
-}
-
 static void _flush_message(uint64_t u64tckTimestamp) {
   static uint8_t u8Phase;
   static char buf[LOG_BUFLEN];
@@ -228,7 +214,7 @@ static void _flush_message(uint64_t u64tckTimestamp) {
     // some internal call causes WDT
     snprintf(buf, LOG_BUFLEN, "%s%"PRIu64"%s", message_pfx, u64tckTimestamp, message_sfx);
   }
-  _uart_println("LOG:\tts ", buf, buf_e - buf);
+  uart_printf(gpsUART0, "LOG:\tts %.*s\r\n", buf_e - buf, buf);
   ++u8Phase;
 }
 
@@ -398,20 +384,10 @@ static void _bme280_init(SBme280StateDesc *psState, SI2cIfaceCfg *psIface) {
 }
 
 static void _bme280_print_result(const SBme280TPH *psRes, uint32_t u32TFine) {
-  char acBuf[20];
-  char *bufE;
-  bufE = print_dec(acBuf, u32TFine);
-  _uart_println("Tfine: ", acBuf, bufE - acBuf);
-  bufE = print_deccent(acBuf, psRes->i32Temp, '.');
-  _uart_println("Temp: ", acBuf, bufE - acBuf);
-  bufE = print_dec(acBuf, psRes->i32Pres >> 8);
-  *(bufE++) = '.';
-  bufE = print_dec_padded(bufE, ((psRes->i32Pres & 0xff)*391) / 1000, 2, '0');
-  _uart_println("Pres: ", acBuf, bufE - acBuf);
-  bufE = print_dec(acBuf, psRes->i32Hum >> 10);
-  *(bufE++) = '.';
-  bufE = print_dec_padded(bufE, ((psRes->i32Hum & 0x3ff)*97657) / 100000, 3, '0');
-  _uart_println("Hum: ", acBuf, bufE - acBuf);
+  uart_printf(gpsUART0, "Tfine: %d\r\n", u32TFine);
+  uart_printf(gpsUART0, "Temp: %d.%02d\r\n", psRes->i32Temp / 100, psRes->i32Temp % 100);
+  uart_printf(gpsUART0, "Pres: %d.%02d\r\n", psRes->i32Pres >> 8, ((psRes->i32Pres & 0xff)*391) / 1000);
+  uart_printf(gpsUART0, "Hum: %d.%03d\r\n", psRes->i32Hum >> 10, ((psRes->i32Hum & 0x3ff)*97657) / 100000);
 }
 
 static void _bme280_cycle(uint64_t u64Ticks) {
@@ -464,13 +440,8 @@ static void _bh1750_print_result(const SBh1750StateDesc *psState) {
   uint8_t u8MTime = bh1750_get_mtime(psState);
   uint8_t u16Result = conv16be(psState->u16beResult);
   uint32_t u32mLx = bh1750_result_to_mlx(u16Result, u8MTime, eMRes);
-  char acBuf[40];
-  char *pcBufE = acBuf;
-  pcBufE = str_append(pcBufE, acBh1750MResName[eMRes]);
-  pcBufE = str_append(pcBufE, ": ");
-  pcBufE = print_decmilli(pcBufE, u32mLx, '.');
 
-  _uart_println("BH1750 ", acBuf, pcBufE - acBuf);
+  uart_printf(gpsUART0, "BH1750 %s: %d.%03d\r\n", acBh1750MResName[eMRes], u32mLx/1000, u32mLx%1000);
 }
 
 static void _bh1750_cycle(uint64_t u64Ticks) {
@@ -507,7 +478,7 @@ static void _bh1750_cycle(uint64_t u64Ticks) {
             u8Retries = BH1750_READ_RETRIES;
           } else {
             // EITHER 0 was measured OR result still not ready
-            _uart_println("BH1750 retry", NULL, 0);
+            uart_printf(gpsUART0, "BH1750 retry\r\n");
             u32hmsWaitHint += BH1750_RETRY_WAIT_HMS; // so let's wait some dt
           }
           break;
@@ -602,13 +573,13 @@ static void _i2cscan_cycle(uint64_t u64Ticks) {
           pcBufE = str_append(pcBufE, " 0x");
           pcBufE = print_hex8(pcBufE, i);
           if (5 * I2CSCAN_PRINT_PER_ROW <= (pcBufE - acBuf)) {
-            _uart_println(acPfx, acBuf, pcBufE - acBuf);
+            uart_printf(gpsUART0, "%s%.*s\r\n", acPfx, pcBufE - acBuf, acBuf);
             pcBufE = acBuf;
           }
         }
       }
       if (pcBufE != acBuf) {
-        _uart_println(acPfx, acBuf, pcBufE - acBuf);
+            uart_printf(gpsUART0, "%s%.*s\r\n", acPfx, pcBufE - acBuf, acBuf);
       }
 
       u64NextTick += MS2TICKS(I2CSCAN_PERIOD_MS);
