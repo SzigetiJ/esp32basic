@@ -42,6 +42,7 @@
 #define INC_PERIOD_MS 1900U
 #define I2CSCAN_PERIOD_MS 8600U
 #define ALARM_PERIOD_MS 4500U
+#define UARTCTRL_PERIOD_MS 503U
 
 #define BH1750_RETRY_WAIT_HMS 10U
 
@@ -122,6 +123,7 @@ static void _bme280_print_result(const SBme280TPH *psRes, uint32_t u32TFine);
 static void _bme280_cycle(uint64_t u64Ticks);
 static void _log_cycle(uint64_t u64Ticks);
 static void _inc_cycle(uint64_t u64Ticks);
+static void _uartctrl_cycle(uint64_t u64Ticks);
 
 // =================== Global constants ================
 const bool gbStartAppCpu = START_APP_CPU;
@@ -134,6 +136,7 @@ static const char message_sfx[] = " ms\r\n";
 static const char acLedPhase[] = "*O";
 
 static UART_Type *gpsUART0 = &gsUART0;
+static UART_Type *gpsUART0M = &gsUART0Mapped; // for FIFO read
 static volatile bool gbLedState = false;
 static volatile EDisplayState geOledState = DISPLAY_INIT;
 static volatile uint64_t gu64tckAlarmCur = 0;
@@ -191,24 +194,6 @@ static void _flush_message(uint64_t u64tckTimestamp) {
     for (int i = 0; i < 0; ++i) {
       *(buf_e++) = ' ';
       buf_e = print_dec(buf_e, gau32IncVal[i]);
-    }
-    if (false) {
-      *(buf_e++) = ' ';
-      buf_e = print_hex32(buf_e, gpio_regs()->FUNC_OUT_SEL_CFG[I2C0_SCL_GPIO]);
-      *(buf_e++) = ' ';
-      buf_e = print_hex32(buf_e, gpio_regs()->FUNC_OUT_SEL_CFG[I2C0_SDA_GPIO]);
-      *(buf_e++) = ' ';
-      buf_e = print_hex32(buf_e, i2c_regs(I2C0)->SR);
-      *(buf_e++) = ' ';
-      buf_e = print_hex32(buf_e, i2c_regs(I2C0)->FIFO_CONF);
-      *(buf_e++) = ' ';
-      buf_e = print_hex32(buf_e, i2c_regs(I2C0)->INT_RAW);
-      *(buf_e++) = ' ';
-      buf_e = print_hex32(buf_e, i2c_regs(I2C0)->INT_ST);
-      *(buf_e++) = ' ';
-      buf_e = print_hex8(buf_e, u8Phase & 0x0f);
-      *(buf_e++) = ':';
-      buf_e = print_hex32(buf_e, i2c_regs(I2C0)->COMD[u8Phase & 0x0f]);
     }
   } else {
     // some internal call causes WDT
@@ -588,6 +573,26 @@ static void _i2cscan_cycle(uint64_t u64Ticks) {
   }
 }
 
+static void _uartctrl_cycle(uint64_t u64Ticks) {
+  static uint64_t u64NextTick = 0;
+
+  if (u64NextTick <= u64Ticks) {
+    while (0 < (gpsUART0->STATUS & 0xff)) {
+      uint32_t u32msNow = u64Ticks / TICKS_PER_MS;
+      char cCtrl = gpsUART0M->FIFO & 0xff;
+      switch (cCtrl) {
+        case 'i': // I2C status
+          uart_printf(gpsUART0, "[%d] GPIO_FUNC_OUT: %08X %08X", u32msNow, gpio_regs()->FUNC_OUT_SEL_CFG[I2C0_SCL_GPIO], gpio_regs()->FUNC_OUT_SEL_CFG[I2C0_SDA_GPIO]);
+          uart_printf(gpsUART0, "\tI2C Regs: %08X %08X %08X %08X\r\n", i2c_regs(I2C0)->SR, i2c_regs(I2C0)->FIFO_CONF, i2c_regs(I2C0)->INT_RAW, i2c_regs(I2C0)->INT_ST);
+        break;
+        default:
+          uart_printf(gpsUART0, "[%d] `%c' command not recognized\r\n", u32msNow, cCtrl);
+      }
+    }
+    u64NextTick += MS2TICKS(UARTCTRL_PERIOD_MS);
+  }
+}
+
 static void _schedule_isr() {
   gsPCbDesc.eCpu = xt_utils_get_core_id() ? CPU_APP : CPU_PRO;
   timg_callback_at(gsPCbDesc.u64tckAlarmCur, gsPCbDesc.eCpu, gsPCbDesc.sTimer, gsPCbDesc.u8Int, &_timer_isr, (void*) &gsPCbDesc);
@@ -624,4 +629,5 @@ void prog_cycle_pro(uint64_t u64tckNow) {
   _i2cscan_cycle(u64tckNow);
   _bh1750_cycle(u64tckNow);
   _bme280_cycle(u64tckNow);
+  _uartctrl_cycle(u64tckNow);
 }

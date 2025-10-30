@@ -38,6 +38,7 @@ const uint64_t gu64tckSchedulePeriod = (CLK_FREQ_HZ / SCHEDULE_FREQ_HZ);
 
 // ==================== Local Data ================
 static UART_Type *gpsUART0 = &gsUART0;
+static UART_Type *gpsUART0M = &gsUART0Mapped;
 
 // Implementation
 
@@ -55,7 +56,7 @@ static void _ledctrl_cycle(uint64_t u64Ticks) {
 
   if (u64NextTick <= u64Ticks) {
     while (0 < (gpsUART0->STATUS & 0xff)) {
-      char cCtrl = gpsUART0->FIFO & 0xff;
+      char cCtrl = gpsUART0M->FIFO & 0xff;
       switch (cCtrl) {
         case 'y':
           gpio_reg_setbit(&gsGPIO.OUT_W1TS, LED1_GPIO);
