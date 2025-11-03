@@ -62,7 +62,7 @@
 #define BME280_I2C_SLAVEADDR 0x76
 
 // #3: Sizes
-#define LOG_BUFLEN 120
+#define UART0_TXSIZE 1U
 #define I2CSCAN_PRINT_PER_ROW 8
 
 // #4: Others
@@ -104,26 +104,27 @@ typedef struct {
 } PeriodicCallbackDesc;
 
 // ================ Local function declarations =================
-static void _flush_message(uint64_t u64tckTimestamp);
+static void  _uart_print_header(UART_Type *psUart, uint64_t u64tckNow, const char* strModuleName);
+static void _flush_message(uint64_t u64tckNow);
 static void _alternate_value(void *pvParam);
 static ELockmgrResource _i2c_to_lock(EI2CBus eBus);
 static void _schedule_isr();
-static void _i2cscan_cycle(uint64_t u64Ticks);
+static void _i2cscan_cycle(uint64_t u64tckNow);
 static void _init_drivers();
 static void _init_uart();
-static void _i2c_release_cycle(uint64_t u64Ticks);
+static void _i2c_release_cycle(uint64_t u64tckNow);
 static void _switch_leds_init(TimerId sTimer);
-static void _switch_leds_cycle(uint64_t u64Ticks);
-static void _oled_cycle(uint64_t u64Ticks);
+static void _switch_leds_cycle(uint64_t u64tckNow);
+static void _oled_cycle(uint64_t u64tckNow);
 static void _bh1750_init(SBh1750StateDesc *psState, SI2cIfaceCfg *psIface);
-static void _bh1750_print_result(const SBh1750StateDesc *psState);
-static void _bh1750_cycle(uint64_t u64Ticks);
+static void _bh1750_print_result(uint64_t u64tckNow, const SBh1750StateDesc *psState);
+static void _bh1750_cycle(uint64_t u64tckNow);
 static void _bme280_init(SBme280StateDesc *psState, SI2cIfaceCfg *psIface);
-static void _bme280_print_result(const SBme280TPH *psRes, uint32_t u32TFine);
-static void _bme280_cycle(uint64_t u64Ticks);
-static void _log_cycle(uint64_t u64Ticks);
-static void _inc_cycle(uint64_t u64Ticks);
-static void _uartctrl_cycle(uint64_t u64Ticks);
+static void _bme280_print_result(uint64_t u64tckNow, const SBme280TPH *psRes, uint32_t u32TFine);
+static void _bme280_cycle(uint64_t u64tckNow);
+static void _log_cycle(uint64_t u64tckNow);
+static void _inc_cycle(uint64_t u64tckNow);
+static void _uartctrl_cycle(uint64_t u64tckNow);
 
 // =================== Global constants ================
 const bool gbStartAppCpu = START_APP_CPU;
@@ -131,8 +132,6 @@ const uint16_t gu16Tim00Divisor = TIM0_0_DIVISOR;
 const uint64_t gu64tckSchedulePeriod = (CLK_FREQ_HZ / SCHEDULE_FREQ_HZ);
 
 // ==================== Local Data ================
-static const char message_pfx[] = "LOG:\tts: ";
-static const char message_sfx[] = " ms\r\n";
 static const char acLedPhase[] = "*O";
 
 static UART_Type *gpsUART0 = &gsUART0;
@@ -173,34 +172,18 @@ static PeriodicCallbackDesc gsPCbDesc = {
   .u64tckAlarmCur = 0
 };
 
+static void _uart_print_header(UART_Type *psUart, uint64_t u64tckNow, const char* strModuleName) {
+  uart_printf(psUart, "[%d:%s]", (uint32_t)(u64tckNow / TICKS_PER_MS), strModuleName);
+}
 
-static void _flush_message(uint64_t u64tckTimestamp) {
-  static uint8_t u8Phase;
-  static char buf[LOG_BUFLEN];
-  char *buf_e = buf;
-
-  uint64_t u64TsDecimal = u64tckTimestamp / TICKS_PER_MS; // milliseconds, max. ~ 48 bits.
+static void _flush_message(uint64_t u64tckNow) {
+  uint64_t u64TsDecimal = u64tckNow / TICKS_PER_MS; // milliseconds, max. ~ 48 bits.
   uint32_t u32TsDecimalHi = u64TsDecimal / 1000; // seconds, FIXME: max. ~ 38 bits, does not fit into uint32_t
   uint32_t u32TsDecimalLo = u64TsDecimal % 1000; // ms part of the timestamp
-  uint32_t u32TsFractional = (u64tckTimestamp % TICKS_PER_MS) * (1000000 / TICKS_PER_MS); // µs and ns, 6 digits
+  uint32_t u32TsFractional = (u64tckNow % TICKS_PER_MS) * (1000000 / TICKS_PER_MS); // µs and ns, 6 digits
 
-  if (true) {
-    buf_e = print_dec(buf_e, u32TsDecimalHi);
-    *(buf_e++) = ' ';
-    buf_e = print_dec_padded(buf_e, u32TsDecimalLo, 3, '0');
-    *(buf_e++) = '.';
-    buf_e = print_dec_padded(buf_e, u32TsFractional, 6, '0');
-    buf_e = str_append(buf_e, " ms");
-    for (int i = 0; i < 0; ++i) {
-      *(buf_e++) = ' ';
-      buf_e = print_dec(buf_e, gau32IncVal[i]);
-    }
-  } else {
-    // some internal call causes WDT
-    snprintf(buf, LOG_BUFLEN, "%s%"PRIu64"%s", message_pfx, u64tckTimestamp, message_sfx);
-  }
-  uart_printf(gpsUART0, "LOG:\tts %.*s\r\n", buf_e - buf, buf);
-  ++u8Phase;
+  _uart_print_header(gpsUART0, u64tckNow, "LOGGER");
+  uart_printf(gpsUART0, " ts: %d %03d.%06d ms\r\n", u32TsDecimalHi, u32TsDecimalLo, u32TsFractional);
 }
 
 /**
@@ -236,11 +219,17 @@ static void _init_drivers() {
 
 static void _init_uart() {
   gpsUART0->CLKDIV.u20ClkDiv = APB_FREQ_HZ / UART_FREQ_HZ;
+
+  Reg rUartMemConf = gpsUART0->MEM_CONF;
+  rUartMemConf &= ~(0xf << 7);
+  rUartMemConf |= UART0_TXSIZE << 7;
+
+  gpsUART0->MEM_CONF = rUartMemConf;
 }
 
 // TODO: make it an ISR and attach to I2C INT
 
-static void _i2c_release_cycle(uint64_t u64Ticks) {
+static void _i2c_release_cycle(uint64_t u64tckNow) {
   ELockmgrResource eBus = _i2c_to_lock(OLED_I2C_CH);
   I2C_Type *psI2C = i2c_regs(eBus);
   RegAddr prData = i2c_nonfifo(eBus);
@@ -271,26 +260,26 @@ static void _switch_leds_init(TimerId sTimer) {
   }
 }
 
-static void _switch_leds_cycle(uint64_t u64Ticks) {
+static void _switch_leds_cycle(uint64_t u64tckNow) {
   static bool bPhase = false;
-  static uint64_t u64NextTick = 0;
+  static uint64_t u64tckNext = 0;
   static RegAddr aprGpioOut[] = {&gsGPIO.OUT_W1TS, &gsGPIO.OUT_W1TC};
 
-  if (u64NextTick <= u64Ticks) {
+  if (u64tckNext <= u64tckNow) {
     gpio_reg_setbit(aprGpioOut[bPhase], gau8LedGpio[0]);
     gpio_reg_setbit(aprGpioOut[!bPhase], gau8LedGpio[1]);
     if (false) {
       gpsUART0->FIFO = acLedPhase[bPhase];
     }
     bPhase = !bPhase;
-    u64NextTick += MS2TICKS(gbLedState ? LED_BLINK_HPERIOD1_MS : LED_BLINK_HPERIOD0_MS);
+    u64tckNext += MS2TICKS(gbLedState ? LED_BLINK_HPERIOD1_MS : LED_BLINK_HPERIOD0_MS);
   }
 }
 
 // 32x128 display
 
-static void _oled_cycle(uint64_t u64Ticks) {
-  static uint64_t u64NextTick = 0;
+static void _oled_cycle(uint64_t u64tckNow) {
+  static uint64_t u64tckNext = 0;
   static uint32_t u32Value0 = 0;
   static uint32_t u32Value1 = 0;
   static uint32_t u32Mul0 = 1;
@@ -301,7 +290,7 @@ static void _oled_cycle(uint64_t u64Ticks) {
   static uint32_t u32LastLabel;
   static bool bFirstRun = true;
 
-  if (u64NextTick <= u64Ticks) {
+  if (u64tckNext <= u64tckNow) {
     uint32_t u32NextLabel;
     if (lockmgr_acquire_lock(_i2c_to_lock(OLED_I2C_CH), &u32NextLabel)) {
       if (!bFirstRun) {
@@ -338,7 +327,7 @@ static void _oled_cycle(uint64_t u64Ticks) {
 
           i2c_write(OLED_I2C_CH, OLED_I2C_SLAVEADDR, ARRAY_SIZE(gacOledDataSeq) - 3, (const uint8_t*) gacOledDataSeq + 3);
 
-          u64NextTick += MS2TICKS(OLED_PERIOD_MS);
+          u64tckNext += MS2TICKS(OLED_PERIOD_MS);
           ++u32Value0;
           if (32U * u32Div0 <= u32Value0) {
             u32Value0 = 0;
@@ -368,15 +357,16 @@ static void _bme280_init(SBme280StateDesc *psState, SI2cIfaceCfg *psIface) {
   };
 }
 
-static void _bme280_print_result(const SBme280TPH *psRes, uint32_t u32TFine) {
-  uart_printf(gpsUART0, "Tfine: %d\r\n", u32TFine);
-  uart_printf(gpsUART0, "Temp: %d.%02d\r\n", psRes->i32Temp / 100, psRes->i32Temp % 100);
-  uart_printf(gpsUART0, "Pres: %d.%02d\r\n", psRes->i32Pres >> 8, ((psRes->i32Pres & 0xff)*391) / 1000);
-  uart_printf(gpsUART0, "Hum: %d.%03d\r\n", psRes->i32Hum >> 10, ((psRes->i32Hum & 0x3ff)*97657) / 100000);
+static void _bme280_print_result(uint64_t u64tckNow, const SBme280TPH *psRes, uint32_t u32TFine) {
+  _uart_print_header(gpsUART0, u64tckNow, "BME280");
+  uart_printf(gpsUART0, "\r\n  Tfine: %d\r\n", u64tckNow / TICKS_PER_MS, u32TFine);
+  uart_printf(gpsUART0, "  Temp: %d.%02d\r\n", psRes->i32Temp / 100, psRes->i32Temp % 100);
+  uart_printf(gpsUART0, "  Pres: %d.%02d\r\n", psRes->i32Pres >> 8, ((psRes->i32Pres & 0xff)*391) / 1000);
+  uart_printf(gpsUART0, "  Hum: %d.%03d\r\n", psRes->i32Hum >> 10, ((psRes->i32Hum & 0x3ff)*97657) / 100000);
 }
 
-static void _bme280_cycle(uint64_t u64Ticks) {
-  static uint64_t u64NextTick = MS2TICKS(BME280_PERIOD_MS);
+static void _bme280_cycle(uint64_t u64tckNow) {
+  static uint64_t u64tckNext = MS2TICKS(BME280_PERIOD_MS);
   static bool bFirstRun = true;
   static SBme280StateDesc sState;
   static SI2cIfaceCfg sIface;
@@ -386,21 +376,21 @@ static void _bme280_cycle(uint64_t u64Ticks) {
     bFirstRun = false;
   }
 
-  if (u64NextTick <= u64Ticks) {
+  if (u64tckNext <= u64tckNow) {
     uint32_t u32hmsWaitHint = 0;
     bme280_async_rx_cycle(&sState, &u32hmsWaitHint);
     if (bme280_is_data_updated(&sState)) {
       uint32_t u32TFine;
       SBme280TPH sResult = bme280_get_measurement(&sState, &u32TFine);
-      _bme280_print_result(&sResult, u32TFine);
+      _bme280_print_result(u64tckNow, &sResult, u32TFine);
       bme280_ack_data_updated(&sState);
       bme280_set_mode_forced(&sState);
-      u64NextTick += MS2TICKS(BME280_PERIOD_MS);
+      u64tckNext += MS2TICKS(BME280_PERIOD_MS);
     } else {
       if (u32hmsWaitHint == 0) {
         bme280_async_tx_cycle(&sIface, &sState);
       } else {
-        u64NextTick += MS2TICKS(u32hmsWaitHint) / 2;
+        u64tckNext += MS2TICKS(u32hmsWaitHint) / 2;
       }
     }
   }
@@ -417,7 +407,7 @@ static void _bh1750_init(SBh1750StateDesc *psState, SI2cIfaceCfg *psIface) {
   };
 }
 
-static void _bh1750_print_result(const SBh1750StateDesc *psState) {
+static void _bh1750_print_result(uint64_t u64tckTimestamp, const SBh1750StateDesc *psState) {
   static const char *acBh1750MResName[] = {
     "H", "H2", "XX", "L"
   };
@@ -425,22 +415,25 @@ static void _bh1750_print_result(const SBh1750StateDesc *psState) {
   uint8_t u8MTime = bh1750_get_mtime(psState);
   uint8_t u16Result = conv16be(psState->u16beResult);
   uint32_t u32mLx = bh1750_result_to_mlx(u16Result, u8MTime, eMRes);
+  uint32_t u32hmsMTime = bh1750_measurementtime_hms(u8MTime, eMRes);
 
-  uart_printf(gpsUART0, "BH1750 %s: %d.%03d\r\n", acBh1750MResName[eMRes], u32mLx/1000, u32mLx%1000);
+  _uart_print_header(gpsUART0, u64tckTimestamp, "BH1750");
+  uart_printf(gpsUART0, " mode: %s, result: %d.%03d lx (raw: %u), mtime: %u ms (raw: %u)\r\n",
+          acBh1750MResName[eMRes],
+          u32mLx/1000, u32mLx%1000, u16Result,
+          u32hmsMTime / 2, u8MTime);
 }
 
-static void _bh1750_cycle(uint64_t u64Ticks) {
-  const uint8_t u8MTimeMin = 31;
-  const uint8_t u8MTimeMax = 254;
+static void _bh1750_cycle(uint64_t u64tckNow) {
 
-  static uint64_t u64NextTick = MS2TICKS(BH1750_PERIOD_MS);
+  static uint64_t u64tckNext = MS2TICKS(BH1750_PERIOD_MS);
   static SBh1750StateDesc sState;
   static SI2cIfaceCfg sIface;
   static EBh1750Phase ePhase = BH1750_PH_INIT;
   static uint8_t u8Retries = BH1750_READ_RETRIES;
-  static uint8_t u8MTime = 69;
+  static uint8_t u8MTime = BH1750_MTIME_DEFAULT;
 
-  if (u64NextTick <= u64Ticks) {
+  if (u64tckNext <= u64tckNow) {
     if (ePhase == BH1750_PH_INIT) {
       _bh1750_init(&sState, &sIface);
     }
@@ -463,7 +456,8 @@ static void _bh1750_cycle(uint64_t u64Ticks) {
             u8Retries = BH1750_READ_RETRIES;
           } else {
             // EITHER 0 was measured OR result still not ready
-            uart_printf(gpsUART0, "BH1750 retry\r\n");
+            _uart_print_header(gpsUART0, u64tckNow, "BH1750");
+            uart_printf(gpsUART0, " retry\r\n");
             u32hmsWaitHint += BH1750_RETRY_WAIT_HMS; // so let's wait some dt
           }
           break;
@@ -475,7 +469,7 @@ static void _bh1750_cycle(uint64_t u64Ticks) {
           if (bh1750_get_mres(&sState) == BH1750_RES_H) {
             do {
               u8MTime += 5;
-            } while (u8MTime < u8MTimeMin || u8MTimeMax < u8MTime);
+            } while (u8MTime < BH1750_MTIME_MIN || BH1750_MTIME_MAX < u8MTime);
             bh1750_set_mtime(&sState, u8MTime);
           }
           break;
@@ -484,13 +478,13 @@ static void _bh1750_cycle(uint64_t u64Ticks) {
       }
     }
     if (bResultReady) {
-      _bh1750_print_result(&sState);
-      u64NextTick += MS2TICKS(BH1750_PERIOD_MS);
+      _bh1750_print_result(u64tckNow, &sState);
+      u64tckNext += MS2TICKS(BH1750_PERIOD_MS);
     } else { // TX side
       if (u32hmsWaitHint == 0) {
         bh1750_async_tx_cycle(&sIface, &sState);
       } else {
-        u64NextTick += MS2TICKS(u32hmsWaitHint) / 2;
+        u64tckNext += MS2TICKS(u32hmsWaitHint) / 2;
       }
     }
   }
@@ -499,25 +493,25 @@ static void _bh1750_cycle(uint64_t u64Ticks) {
 
 // Logger
 
-static void _log_cycle(uint64_t u64Ticks) {
-  static uint64_t u64NextTick = 0;
+static void _log_cycle(uint64_t u64tckNow) {
+  static uint64_t u64tckNext = 0;
 
-  if (u64NextTick <= u64Ticks) {
-    _flush_message(u64Ticks);
-    u64NextTick += MS2TICKS(LOG_PERIOD_MS);
+  if (u64tckNext <= u64tckNow) {
+    _flush_message(u64tckNow);
+    u64tckNext += MS2TICKS(LOG_PERIOD_MS);
   }
 }
 
 // value incrementation on two cores with mutex
 
-static void _inc_cycle(uint64_t u64Ticks) {
-  static uint64_t u64NextTick[] = {0, 0};
+static void _inc_cycle(uint64_t u64tckNow) {
+  static uint64_t u64tckNext[] = {0, 0};
 
   uint32_t au32Tmp[ARRAY_SIZE(gau32IncVal)];
   uint32_t u32CurrentCore = xt_utils_get_core_id();
   uint8_t u8CurrentCore = u32CurrentCore ? 1 : 0;
 
-  if (u64NextTick[u8CurrentCore] <= u64Ticks) {
+  if (u64tckNext[u8CurrentCore] <= u64tckNow) {
     while (!xt_utils_compare_and_set(&gu32MutexIncProc, 0, u32CurrentCore + 1));
     for (int i = 0; i < 1000; ++i) {
       for (int j = 0; j < ARRAY_SIZE(gau32IncVal); ++j) {
@@ -531,13 +525,12 @@ static void _inc_cycle(uint64_t u64Ticks) {
       }
     }
     gu32MutexIncProc = 0;
-    u64NextTick[u8CurrentCore] += MS2TICKS(INC_PERIOD_MS);
+    u64tckNext[u8CurrentCore] += MS2TICKS(INC_PERIOD_MS);
   }
 }
 
-static void _i2cscan_cycle(uint64_t u64Ticks) {
-  const char acPfx[] = "I2C slave(s) found:";
-  static uint64_t u64NextTick = 0;
+static void _i2cscan_cycle(uint64_t u64tckNow) {
+  static uint64_t u64tckNext = 0;
   static SI2cScanStateDesc sState;
   static SI2cIfaceCfg sIface;
   static bool bFirstRun = true;
@@ -549,47 +542,112 @@ static void _i2cscan_cycle(uint64_t u64Ticks) {
     bFirstRun = false;
   }
 
-  if (u64NextTick <= u64Ticks) {
+  if (u64tckNext <= u64tckNow) {
     if (i2cutils_scan_cycle(&sIface, &sState)) {
-      char acBuf[5 * I2CSCAN_PRINT_PER_ROW + 2];
-      char *pcBufE = acBuf;
+      uint8_t u8DevCnt = 0;
+      _uart_print_header(gpsUART0, u64tckNow, "I2CScan");
       for (uint8_t i = 0; i < 128; ++i) {
         if (sState.au8Slave[i / 8] & (1 << (i % 8))) {
-          pcBufE = str_append(pcBufE, " 0x");
-          pcBufE = print_hex8(pcBufE, i);
-          if (5 * I2CSCAN_PRINT_PER_ROW <= (pcBufE - acBuf)) {
-            uart_printf(gpsUART0, "%s%.*s\r\n", acPfx, pcBufE - acBuf, acBuf);
-            pcBufE = acBuf;
+          if (u8DevCnt == 0) {
+            uart_printf(gpsUART0, " I2C slaves found:");
           }
+          uart_printf(gpsUART0, "%s0x%02X", (u8DevCnt % I2CSCAN_PRINT_PER_ROW) ? " " : "\r\n  ", i);
+          ++u8DevCnt;
         }
       }
-      if (pcBufE != acBuf) {
-            uart_printf(gpsUART0, "%s%.*s\r\n", acPfx, pcBufE - acBuf, acBuf);
+      if (u8DevCnt == 0) {
+        uart_printf(gpsUART0, " no devices found.");
       }
+      uart_printf(gpsUART0, "\r\n");
 
-      u64NextTick += MS2TICKS(I2CSCAN_PERIOD_MS);
+      u64tckNext += MS2TICKS(I2CSCAN_PERIOD_MS);
       sState = i2cutil_scan_init();
     }
   }
 }
 
-static void _uartctrl_cycle(uint64_t u64Ticks) {
-  static uint64_t u64NextTick = 0;
+static void _uartctrl_cycle(uint64_t u64tckNow) {
+  static uint64_t u64tckWakeup = 0;
+  static char cCommand = ' '; // init value not used.
+  static char acArg[2]; // a set of commands require argument(s). They are store in this array (reverse order).
+  static uint8_t u8WaitForArgs = 0;  // number of arguments the current command still requires.
 
-  if (u64NextTick <= u64Ticks) {
+  if (u64tckWakeup <= u64tckNow) {
     while (0 < (gpsUART0->STATUS & 0xff)) {
-      uint32_t u32msNow = u64Ticks / TICKS_PER_MS;
       char cCtrl = gpsUART0M->FIFO & 0xff;
-      switch (cCtrl) {
-        case 'i': // I2C status
-          uart_printf(gpsUART0, "[%d] GPIO_FUNC_OUT: %08X %08X", u32msNow, gpio_regs()->FUNC_OUT_SEL_CFG[I2C0_SCL_GPIO], gpio_regs()->FUNC_OUT_SEL_CFG[I2C0_SDA_GPIO]);
-          uart_printf(gpsUART0, "\tI2C Regs: %08X %08X %08X %08X\r\n", i2c_regs(I2C0)->SR, i2c_regs(I2C0)->FIFO_CONF, i2c_regs(I2C0)->INT_RAW, i2c_regs(I2C0)->INT_ST);
-        break;
-        default:
-          uart_printf(gpsUART0, "[%d] `%c' command not recognized\r\n", u32msNow, cCtrl);
+      if (0 < u8WaitForArgs) {
+        acArg[--u8WaitForArgs] = cCtrl;
+        if (0 == u8WaitForArgs) { // all the required number of arguments arrived
+          switch (cCommand) {
+            case 'w': // put a byte into lockmgr RX buffer
+              uint8_t u8ArgValue= char_to_hex8(acArg[0]) | (char_to_hex8(acArg[1]) << 4);
+              ELockmgrResource eRes = _i2c_to_lock(OLED_I2C_CH);
+              bool bLocked = lockmgr_is_locked(eRes);
+              if (bLocked) {
+                uint32_t u32Label = lockmgr_get_lock_owner(eRes);
+                AsyncResultEntry* psEntry = lockmgr_get_entry(u32Label);
+                psEntry->pu8ReceiveBuffer[0] = u8ArgValue;
+                ++psEntry->pu8ReceiveBuffer;
+                --psEntry->u8RxLen;
+              }
+
+              break;
+          }
+        }
+      } else {
+        switch (cCtrl) {
+          case 'h': // help
+            _uart_print_header(gpsUART0, u64tckNow, "CTRL");
+            uart_printf(gpsUART0, "\r\n [h]\tprint help %d\r\n", uart_tx_cnt(gpsUART0));
+            uart_printf(gpsUART0, " [i]\tshow I2C status %d\r\n", uart_tx_cnt(gpsUART0));
+            uart_printf(gpsUART0, " [l]\tshow I2C lock state %d\r\n", uart_tx_cnt(gpsUART0));
+            uart_printf(gpsUART0, " [wXX]\tput a byte into current lockmgr RX buffer\r\n");
+            uart_printf(gpsUART0, " [r]\trelease current lock\r\n");
+            break;
+          case 'i': // I2C status
+            _uart_print_header(gpsUART0, u64tckNow, "CTRL");
+            uart_printf(gpsUART0, " GPIO_FUNC_OUT: %08X %08X", gpio_regs()->FUNC_OUT_SEL_CFG[I2C0_SCL_GPIO], gpio_regs()->FUNC_OUT_SEL_CFG[I2C0_SDA_GPIO]);
+            uart_printf(gpsUART0, "\tI2C Regs: %08X %08X %08X %08X\r\n", i2c_regs(I2C0)->SR, i2c_regs(I2C0)->FIFO_CONF, i2c_regs(I2C0)->INT_RAW, i2c_regs(I2C0)->INT_ST);
+            break;
+          case 'l': // show locks
+          {
+            ELockmgrResource eRes = _i2c_to_lock(OLED_I2C_CH);
+            bool bLocked = lockmgr_is_locked(eRes);
+            _uart_print_header(gpsUART0, u64tckNow, "CTRL");
+            uart_printf(gpsUART0, " locked: %d", bLocked);
+            if (bLocked) {
+              uint32_t u32Label = lockmgr_get_lock_owner(eRes);
+              AsyncResultEntry* psEntry = lockmgr_get_entry(u32Label);
+              uart_printf(gpsUART0, ", label: %d, bytes: %d, INT: %08X", u32Label, psEntry->u8RxLen, psEntry->u32IntSt);
+            }
+            uart_printf(gpsUART0, "\r\n");
+          }
+          break;
+          case 'r':
+          {
+            _uart_print_header(gpsUART0, u64tckNow, "CTRL");
+            uart_printf(gpsUART0, "release lock\r\n");
+            ELockmgrResource eRes = _i2c_to_lock(OLED_I2C_CH);
+            bool bLocked = lockmgr_is_locked(eRes);
+            if (bLocked) {
+              uint32_t u32Label = lockmgr_get_lock_owner(eRes);
+              AsyncResultEntry* psEntry = lockmgr_get_entry(u32Label);
+              psEntry->bReady = true;
+              lockmgr_free_lock(eRes);
+            }
+          }
+          break;
+          case 'w':
+            cCommand = 'w';
+            u8WaitForArgs = 2;
+            break;
+          default:
+            _uart_print_header(gpsUART0, u64tckNow, "CTRL");
+            uart_printf(gpsUART0, " `%c' command not recognized\r\n", cCtrl);
+        }
       }
     }
-    u64NextTick += MS2TICKS(UARTCTRL_PERIOD_MS);
+    u64tckWakeup += MS2TICKS(UARTCTRL_PERIOD_MS);
   }
 }
 

@@ -178,13 +178,13 @@ bool bh1750_is_poweron(const SBh1750StateDesc *psState) {
 bool bh1750_async_rx_cycle(SBh1750StateDesc *psState, uint32_t *pu32hmsWaitHint) {
   BH1750Flags *psFlags = (BH1750Flags*) (&psState->u32Flags);
 
-  *pu32hmsWaitHint = 0U;
+  *pu32hmsWaitHint = 0U;  // the only case when we have to wait is after DO_MEASURE (see below)
   if (psFlags->bWaitingForRx) {
     AsyncResultEntry* psEntry = lockmgr_get_entry(psState->u32LastLabel);
     if (psEntry) {
       if (psEntry->bReady) {
         if (!(psEntry->u32IntSt & I2C_INT_MASK_ERR)) {
-          EWhatToDo eTodo = _what_to_do(psFlags);
+          EWhatToDo eTodo = _what_to_do(psFlags); // what WAS to do
 
           switch (eTodo) {
             case DO_PDOWN:
@@ -253,13 +253,13 @@ bool bh1750_async_tx_cycle(const SI2cIfaceCfg *psIface, SBh1750StateDesc *psStat
             eTodo == DO_MEASURE ? (psFlags->bContinuous ? BH1750_CMD_CONT_MEASURE(psFlags->e2MRes) : BH1750_CMD_ONETIME_MEASURE(psFlags->e2MRes)) :
             -1;
     i2c_write(psIface->eBus, psIface->u8SlaveAddr, 1, &u8Data);
-  } else { // READ
+  } else { // READ  (we always read exactly 2 bytes)
     psEntry->pu8ReceiveBuffer = (uint8_t*) & psState->u16beResult;
     psEntry->u8RxLen = 2;
     i2c_read(psIface->eBus, psIface->u8SlaveAddr, 2);
   }
   if (bRet) { // kind of exception handling
-    psFlags->bWaitingForRx = true;
+    psFlags->bWaitingForRx = true;  // in case of i2c write RxLen is implicitly 0.
   } else {
     lockmgr_release_entry(psState->u32LastLabel);
     lockmgr_free_lock(psIface->eLck);

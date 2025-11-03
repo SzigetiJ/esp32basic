@@ -95,6 +95,13 @@ extern "C" {
     return dst + 2;
   }
 
+  static inline uint8_t char_to_hex8(char c) {
+    if (0x40 <= c) {
+      c -= 7;
+    }
+    return (c & 0xf);
+  }
+
 #undef ZERO_CHR
 #undef HEXA_LO_CHR
 

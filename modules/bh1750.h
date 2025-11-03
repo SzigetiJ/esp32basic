@@ -15,6 +15,10 @@ extern "C" {
 #include <stdbool.h>
 #include "utils/i2ciface.h"
 
+#define BH1750_MTIME_MIN 31
+#define BH1750_MTIME_MAX 254
+#define BH1750_MTIME_DEFAULT 69
+
   /**
    * Possible measurement resolutions.
    */

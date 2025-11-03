@@ -15,5 +15,6 @@ PROVIDE ( gsUART2 = 0x602E0000);
 PROVIDE ( gsUART0Mapped = 0x3ff40000);
 PROVIDE ( gsUART1Mapped = 0x3ff50000);
 PROVIDE ( gsUART2Mapped = 0x3ff6e000);
-
+PROVIDE ( gsUHCI0 = 0x3FF54000);
+PROVIDE ( gsUHCI1 = 0x3FF4C000);
 PROVIDE ( _impure_ptr = 0x3ffae0b0);

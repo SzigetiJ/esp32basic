@@ -22,8 +22,10 @@
 #include "uartutils.h"
 #include "typeaux.h"
 
+#define BUFFER_SIZE 100
+
 int uart_printf(UART_Type *psUART, const char *pcFormat, ...) {
-  char acBuf[100];
+  char acBuf[BUFFER_SIZE];
   va_list va;
   va_start(va, pcFormat);
   int iLen = _vsnprintf_r(IMPURE_PTR, acBuf, ARRAY_SIZE(acBuf), pcFormat, va);
@@ -33,4 +35,3 @@ int uart_printf(UART_Type *psUART, const char *pcFormat, ...) {
   }
   return iLen;
 }
-
