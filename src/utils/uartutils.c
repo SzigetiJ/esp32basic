@@ -22,8 +22,16 @@
 #include "uartutils.h"
 #include "typeaux.h"
 
-#define BUFFER_SIZE 100
+#define BUFFER_SIZE 128
 
+/**
+ * printf with UART TX buffer as destination.
+ * The UART TX buffer is fed via FIFO register byte-by-byte.
+ * @param psUART UART controller (destiny).
+ * @param pcFormat Format string.
+ * @param ... printf arguments
+ * @return number of sent bytes.
+ */
 int uart_printf(UART_Type *psUART, const char *pcFormat, ...) {
   char acBuf[BUFFER_SIZE];
   va_list va;

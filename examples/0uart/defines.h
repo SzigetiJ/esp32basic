@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 SZIGETI János
+ * Copyright 2025 SZIGETI János
  *
  * This file is part of Bilis ESP32 Basic, which is released under GNU General Public License.version 3.
  * See LICENSE or <https://www.gnu.org/licenses/> for full license details.

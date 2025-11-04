@@ -6,15 +6,9 @@
  */
 #include <stdbool.h>
 #include <inttypes.h>
-#include <stdio.h>
-#include <string.h>
-#include <ctype.h>
 
-#include "gpio.h"
 #include "main.h"
 #include "defines.h"
-#include "typeaux.h"
-#include "print.h"
 #include "uart.h"
 #include "utils/uartutils.h"
 
