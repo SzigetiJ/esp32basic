@@ -14,7 +14,7 @@
 
 // =================== Hard constants =================
 // #1: Timings
-#define UART_FREQ_HZ        115200U
+#define UART0_FREQ_HZ        115200U
 #define SCAN_PERIOD_MS 500U  ///< period of command scan
 
 // ============= Local types ===============
@@ -35,7 +35,17 @@ static UART_Type *gpsUART0M = &gsUART0Mapped;
 // Implementation
 
 static void _uart_init() {
-  gpsUART0->CLKDIV.u20ClkDiv = APB_FREQ_HZ / UART_FREQ_HZ;
+#define UART0_CLKDIV_INT HZ2APBTICKS(UART0_FREQ_HZ)
+#define UART0_CLKDIV_REM (APB_FREQ_HZ - (UART0_CLKDIV_INT * UART0_FREQ_HZ))
+#define UART0_CLKDIV_FRAG ((16U * UART0_CLKDIV_REM) / UART0_FREQ_HZ)
+// version A)
+  gsUART0.CLKDIV.u20ClkDiv = UART0_CLKDIV_INT;
+  gsUART0.CLKDIV.u4ClkDivFrag = UART0_CLKDIV_FRAG;
+// version B)
+//  gsUART0.CLKDIV.raw = UART0_CLKDIV_INT | (UART0_CLKDIV_FRAG << 20);  // this line results in shorter binary file
+#undef UART0_CLKDIV_FRAG
+#undef UART0_CLKDIV_REM
+#undef UART0_CLKDIV_INT
 }
 
 static void _uart_cycle(uint64_t u64tckNow) {
