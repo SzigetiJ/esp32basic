@@ -24,6 +24,27 @@ extern "C" {
     UDMA_CTL1
   } EUdmaController;
 
+  typedef enum {
+    UHCI_INT_RXSTART = 0,
+    UHCI_INT_TXSTART,
+    UHCI_INT_RXHUNG,
+    UHCI_INT_TXHUNG,
+    UHCI_INT_INDONE,  // 4
+    UHCI_INT_INSUCEOF,
+    UHCI_INT_INERREOF,
+    UHCI_INT_OUTDONE,
+    UHCI_INT_OUTEOF,  // 8
+    UHCI_INT_INDSCRERR,
+    UHCI_INT_OUTDSCRERR,
+    UHCI_INT_INDSCREMPTY,
+    UHCI_INT_OUTLINKEOFERR, // 12
+    UHCI_INT_OUTTOTALEOF,
+    UHCI_INT_SENDSREGQ,
+    UHCI_INT_SENDAREGQ,
+    UHCI_INT_DMAINFIFOFULLWM  // 16
+  } EUhciIntType;        ///< Types of UHCI interrupt.
+
+
   // Based on:
   // https://github.com/espressif/esp-idf/blob/6b3da6b188/components/soc/esp32/include/soc/uart_reg.h
 

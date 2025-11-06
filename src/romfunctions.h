@@ -15,8 +15,8 @@ extern "C" {
 #include <stdint.h>
 
   void ets_isr_unmask(uint32_t mask);
-  void _xtos_set_interrupt_handler(int irq_number, void* function);
-  void _xtos_set_interrupt_handler_arg(int irq_number, void* function, int argument);
+  void *_xtos_set_interrupt_handler(int irq_number, void* function);
+  void *_xtos_set_interrupt_handler_arg(int irq_number, void* function, int argument);
 
   void gpio_matrix_out(uint32_t gpio, uint32_t signal_idx, bool out_inv, bool oen_inv);
   void gpio_matrix_in(uint32_t gpio, uint32_t signal_idx, bool inv);
