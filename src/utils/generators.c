@@ -9,6 +9,9 @@
 #define BIT_END 8
 #define PWMPHASE_END 2
 
+// ============== Defines ==============
+// ============== Local types ==============
+
 // ============= Global constants ===============
 const SToByteFunctions gsByteGenFunc = {
   .fNext = (FToByteNext) bytegen_next,
@@ -34,8 +37,10 @@ const SToWordFunctions gsPwmGenFunc = {
   .fReset = (FToXReset) pwmgen_reset
 };
 
-// ============= Implementation ===============
-// ------------- Interface functions ---------------
+// ============== Internal function declarations ==============
+
+// ============== Implementation ==============
+// -------------- Interface functions --------------
 
 // Byte Generator section
 

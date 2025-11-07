@@ -12,6 +12,7 @@
 #include "iomux.h"
 #include "romfunctions.h"
 
+// ============== Defines ==============
 #define I2C0_SCL_IDX 29U
 #define I2C0_SDA_IDX 30U
 #define I2C1_SCL_IDX 95U
@@ -19,6 +20,15 @@
 #define DPORT_I2C0_BIT 7U
 #define DPORT_I2C1_BIT 18U
 
+// ============== Local types ==============
+
+// ============== Internal function declarations ==============
+static inline uint8_t _scl_idx(EI2CBus eBus);
+static inline uint8_t _sda_idx(EI2CBus eBus);
+static inline uint8_t _dport_peri_bit(EI2CBus eBus);
+
+// ============== Implementation ==============
+// -------------- Internal functions --------------
 static inline uint8_t _scl_idx(EI2CBus eBus) {
   return eBus == I2C0 ? I2C0_SCL_IDX : I2C1_SCL_IDX;
 }
@@ -36,6 +46,7 @@ static inline uint8_t _dport_peri_bit(EI2CBus eBus) {
   return eBus == I2C0 ? DPORT_I2C0_BIT : DPORT_I2C1_BIT;
 }
 
+// -------------- Interface functions --------------
 void i2c_write(EI2CBus eBus, uint8_t u8Addr, uint8_t u8Len, const uint8_t *pu8Dat) {
   I2C_Type *psI2C = i2c_regs(eBus);
   RegAddr prData = i2c_nonfifo(eBus);

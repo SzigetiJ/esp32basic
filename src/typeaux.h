@@ -14,6 +14,7 @@
 extern "C" {
 #endif
 
+// ============== Defines ==============
 #define ARRAY_SIZE(X) (sizeof(X) / sizeof(X[0]))
 
   static inline uint16_t conv16be(uint16_t X) {

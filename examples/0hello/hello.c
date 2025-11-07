@@ -39,10 +39,11 @@ const uint64_t gu64tckSchedulePeriod = (CLK_FREQ_HZ / SCHEDULE_FREQ_HZ);
 // ==================== Local Data ================
 static UART_Type *gpsUART0 = &gsUART0;
 
-// Implementation
+// ============== Implementation ==============
+// -------------- Internal functions --------------
 
 static void _uart_init() {
-  gpsUART0->CLKDIV.u20ClkDiv = APB_FREQ_HZ / UART_FREQ_HZ;
+  gpsUART0->CLKDIV.raw = UART_HZ2CLKDIV(UART_FREQ_HZ, APB_FREQ_HZ);
 }
 
 static void _print_cycle(uint64_t u64Ticks) {
@@ -70,7 +71,7 @@ static void _print_cycle(uint64_t u64Ticks) {
   }
 }
 
-// ====================== Interface functions =========================
+// -------------- Interface functions --------------
 
 void prog_init_pro_pre() {
   _uart_init();

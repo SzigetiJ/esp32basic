@@ -13,6 +13,8 @@ extern "C" {
 #endif
 #include "rmt.h"
 
+  // ============== Defines ==============
+
   // ============== Types ==============
   /**
    * Generalized generator function generating uint16_t values.
@@ -43,6 +45,10 @@ extern "C" {
     uint32_t u32OutQueue; ///< Remaining period length (a single input entry may result in multiple output entries).
     bool bLevel; ///< Current output entry signal level.
   } SStretchGenState;
+
+  // ============== Global values / References ==============
+
+  // ============== Inline interface functions ==============
 
   // ============== Interface functions ==============
   /**

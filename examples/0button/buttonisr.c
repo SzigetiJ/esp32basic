@@ -41,7 +41,8 @@ const uint64_t gu64tckSchedulePeriod = (CLK_FREQ_HZ / SCHEDULE_FREQ_HZ);
 // ==================== Local Data ================
 static const char acMessage[] = "Button pressed.\n";
 
-// ================ Local function definitions =================
+// ============== Implementation ==============
+// -------------- Internal functions --------------
 IRAM_ATTR static void _button_isr(void *pvParam) {
   bool bButtonEvent = gsGPIO.STATUS & (1 << BUTTON_GPIO);
   if (bButtonEvent) {
@@ -88,7 +89,7 @@ static void _button_cycle(uint64_t u64Ticks) {
   }
 }
 
-// ====================== Interface functions =========================
+// -------------- Interface functions --------------
 
 void prog_init_pro_pre() {
   gsUART0.CLKDIV.u20ClkDiv = APB_FREQ_HZ / 115200;

@@ -10,6 +10,11 @@
 #include "i2cutils.h"
 #include "i2c.h"
 
+// ============== Local types ==============
+// ============== Internal function declarations ==============
+
+// ============== Implementation ==============
+// -------------- Interface functions --------------
 SI2cScanStateDesc i2cutil_scan_init() {
   SI2cScanStateDesc sRet;
   memset(&sRet, 0, sizeof(sRet));

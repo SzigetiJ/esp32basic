@@ -13,9 +13,13 @@ extern "C" {
 
 #include <stdbool.h>
 #include "esp_attr.h"
+
+  // ============== Defines ==============
 #define XCHAL_HAVE_S32C1I 1
 #define SOC_CPU_CORES_NUM 2
 
+// ============== Implementation ==============
+// -------------- Interface functions --------------
 #ifdef __XTENSA__
 
   /* Taken from https://github.com/espressif/esp-idf/blob/master/components/xtensa/include/xt_utils.h

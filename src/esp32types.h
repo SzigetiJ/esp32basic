@@ -13,6 +13,10 @@ extern "C" {
 
 #include <stdint.h>
 
+  // ============== Defines ==============
+
+  // ============== Types ==============
+
   typedef volatile uint32_t Reg;
   typedef Reg *RegAddr;
   typedef void(*Isr)(void*);
@@ -22,6 +26,9 @@ extern "C" {
     CPU_APP = 1
   } ECpu;
 
+  // ============== Global values / References ==============
+
+  // ============== Inline interface functions ==============
   static inline void register_set(RegAddr prDst, Reg rValue) {
     *prDst = rValue;
   }
@@ -34,6 +41,8 @@ extern "C" {
   static inline Reg register_read(RegAddr prDst) {
     return *prDst;
   }
+
+  // ============== Interface functions ==============
 
 #ifdef __cplusplus
 }

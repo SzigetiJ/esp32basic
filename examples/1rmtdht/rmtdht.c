@@ -24,6 +24,7 @@
 // =================== Hard constants =================
 // #1: Timings
 #define RMTDHT_PERIOD_MS  2000U     ///< Higher than 8 * 0.2s, so RMT blinks will not overlap.
+#define UART_FREQ_HZ 115200U
 
 // #2: Channels / wires / addresses
 #define RMTDHT_GPIO         21U
@@ -33,6 +34,7 @@
 // ============= Local types ===============
 
 // ================ Local function declarations =================
+void _done_rx(void *pvParam, SDht22Data *psParam);
 static void _rmtdht_init();
 static void _rmtdht_cycle(uint64_t u64Ticks);
 
@@ -44,7 +46,8 @@ const uint64_t gu64tckSchedulePeriod = (CLK_FREQ_HZ / SCHEDULE_FREQ_HZ);
 // ==================== Local Data ================
 static SDht22Descriptor gsDht22Desc;
 
-// ==================== Implementation ================
+// ============== Implementation ==============
+// -------------- Internal functions --------------
 
 void _done_rx(void *pvParam, SDht22Data *psParam) {
   uart_printf(&gsUART0, "INVALID: %02X %02X %02X %02X %02X\n",
@@ -87,10 +90,10 @@ static void _rmtdht_cycle(uint64_t u64Ticks) {
   }
 }
 
-// ====================== Interface functions =========================
+// -------------- Interface functions --------------
 
 void prog_init_pro_pre() {
-  gsUART0.CLKDIV.u20ClkDiv = APB_FREQ_HZ / 115200;
+  gsUART0.CLKDIV.raw = UART_HZ2CLKDIV(UART_FREQ_HZ, APB_FREQ_HZ);
 
   _rmtdht_init();
 }

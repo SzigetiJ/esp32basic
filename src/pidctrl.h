@@ -13,6 +13,10 @@ extern "C" {
 
 #include "esp32types.h"
 
+  // ============== Defines ==============
+
+  // ============== Types ==============
+
   typedef struct {
     Reg INT_EN; // bits [1..7]
     Reg INT_ADDR[7]; //
@@ -27,7 +31,12 @@ extern "C" {
     Reg NMI_MASK_DIS; // bit #0
   } PIDCTRL_Type;
 
+  // ============== Global values / References ==============
   extern PIDCTRL_Type gsPIDCTRL;
+
+  // ============== Inline interface functions ==============
+
+  // ============== Interface functions ==============
 
 #ifdef __cplusplus
 }

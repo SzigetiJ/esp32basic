@@ -35,7 +35,8 @@ const uint64_t gu64tckSchedulePeriod = (CLK_FREQ_HZ / SCHEDULE_FREQ_HZ);
 // ==================== Local Data ================
 static volatile bool gbLedOn = false;
 
-// Implementation
+// ============== Implementation ==============
+// -------------- Internal functions --------------
 
 static void _ledblink_init() {
   gpio_pin_enable(LEDBLINK_GPIO);
@@ -52,7 +53,7 @@ static void _ledblink_cycle(uint64_t u64Ticks) {
   }
 }
 
-// ====================== Interface functions =========================
+// -------------- Interface functions --------------
 
 void prog_init_pro_pre() {
   _ledblink_init();

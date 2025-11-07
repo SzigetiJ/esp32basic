@@ -41,6 +41,8 @@
 #define CARRIER_HI_TCK   40000U
 #define CARRIER_LO_TCK   40000U
 
+#define UART_FREQ_HZ 115200U
+
 // #2: Channels / wires / addresses
 #define RMTMORSE_GPIO        2U
 #define RMTMORSE_CH     RMT_CH0
@@ -79,7 +81,8 @@ const uint16_t gau16msPhaseLen[] = {
 };
 const char acMessage[] = MESSAGE;
 
-// ==================== Implementation ================
+// ============== Implementation ==============
+// -------------- Internal functions --------------
 
 /**
  * Transforms a single morse phase into a single RMT (pre)entry using the timings
@@ -156,7 +159,7 @@ static void _rmtmorse_init() {
   _rmt_config_channel(RMTMORSE_CH, 0, 0);
 
   // we do some logging, hence set UART0 speed
-  gsUART0.CLKDIV.u20ClkDiv = APB_FREQ_HZ / 115200;
+  gsUART0.CLKDIV.raw = UART_HZ2CLKDIV(UART_FREQ_HZ, APB_FREQ_HZ);
 }
 
 static void _rmtmorse_cycle(uint64_t u64Ticks) {
@@ -208,7 +211,7 @@ static void _rmtmorse_cycle(uint64_t u64Ticks) {
   }
 }
 
-// ====================== Interface functions =========================
+// -------------- Interface functions --------------
 
 void prog_init_pro_pre() {
   _rmtmorse_init();

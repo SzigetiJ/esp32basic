@@ -25,6 +25,7 @@
 // =================== Hard constants =================
 // #1: Timings
 #define RMTTM1637_PERIOD_MS  500U
+#define UART_FREQ_HZ 115200U
 
 // #2: Channels / wires / addresses
 #define CLK_GPIO         21U
@@ -63,7 +64,8 @@ static uint8_t gau8Tm1637Data[TM1637_CELLS];
 static STm1637State gsTm1637State;
 static SReadyCbParam gsReadyData;
 
-// ==================== Implementation ================
+// ============== Implementation ==============
+// -------------- Internal functions --------------
 
 static void _rmttm1637_ready(void *pvParam) {
   SReadyCbParam *psParam = (SReadyCbParam*) pvParam;
@@ -138,11 +140,10 @@ static void _rmttm1637_cycle(uint64_t u64Ticks) {
   }
 }
 
-// ====================== Interface functions =========================
+// -------------- Interface functions --------------
 
 void prog_init_pro_pre() {
-  gsUART0.CLKDIV.u20ClkDiv = APB_FREQ_HZ / 115200;
-  gsUART0.CLKDIV.u4ClkDivFrag = 7;
+  gsUART0.CLKDIV.raw = UART_HZ2CLKDIV(UART_FREQ_HZ, APB_FREQ_HZ);
   _rmttm1637_init();
 }
 

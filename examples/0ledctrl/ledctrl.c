@@ -40,7 +40,8 @@ const uint64_t gu64tckSchedulePeriod = (CLK_FREQ_HZ / SCHEDULE_FREQ_HZ);
 static UART_Type *gpsUART0 = &gsUART0;
 static UART_Type *gpsUART0M = &gsUART0Mapped;
 
-// Implementation
+// ============== Implementation ==============
+// -------------- Internal functions --------------
 
 static void _led_init() {
   gpio_pin_enable(LED1_GPIO);
@@ -48,7 +49,7 @@ static void _led_init() {
 }
 
 static void _uart_init() {
-  gpsUART0->CLKDIV.u20ClkDiv = APB_FREQ_HZ / UART_FREQ_HZ;
+  gpsUART0->CLKDIV.raw = UART_HZ2CLKDIV(UART_FREQ_HZ, APB_FREQ_HZ);
 }
 
 static void _ledctrl_cycle(uint64_t u64Ticks) {
@@ -78,7 +79,7 @@ static void _ledctrl_cycle(uint64_t u64Ticks) {
   }
 }
 
-// ====================== Interface functions =========================
+// -------------- Internface functions --------------
 
 void prog_init_pro_pre() {
   _led_init();

@@ -13,6 +13,9 @@ extern "C" {
 
 #include "esp32types.h"
 
+  // ============== Defines ==============
+
+  // ============== Types ==============
   // Based on:
   // https://github.com/espressif/esp-idf/blob/6b3da6b1882f3b72e904cc90be67e9c4e3f369a9/components/soc/esp32/include/soc/gpio_reg.h
   typedef volatile union {
@@ -72,6 +75,7 @@ extern "C" {
     Reg FUNC_OUT_SEL_CFG[40];
   } GPIO_Type;
 
+  // ============== Global values / References ==============
   extern GPIO_Type gsGPIO;
 
   static inline GPIO_Type *gpio_regs() {

@@ -12,20 +12,25 @@
 #include "typeaux.h"
 #include "xtutils.h"
 
+// ============== Defines ==============
 #define LOCKMGR_STORE_SIZE 10U  ///< Size of the (shared) result store.
+
+// ============== Local types ==============
 
 // ================= Local module-wide variables ==================
 static volatile AsyncResultEntry gasResult[LOCKMGR_STORE_SIZE]; ///< Result entries are being stored here.
 static volatile uint32_t gau32Mutex[LOCKMGR_RESOURCES]; ///< Mutex (per resource).
 static volatile uint32_t gau32LastAssignedLabel[LOCKMGR_RESOURCES]; ///< Labels get assigned incrementally, so we have to know what is the last assigned value (per resource).
 
-// ================= Local function declarations ==================
+// ============== Internal function declarations ==============
 static void _alloc_entry(uint32_t u32EntryIdx, uint32_t u32Label);
 static void _free_entry(uint32_t u32EntryIdx);
 static bool _find_free_entry(uint32_t *pu32EntryIdx);
 static bool _find_entry(uint32_t *pu32EntryIdx, uint32_t u32Label);
 
-// ================= ENTRY basic methods ==========================
+// ============== Implementation ==============
+// -------------- Internal functions --------------
+// - - - - - - - ENTRY basic methods - - - - - - -
 
 /**
  * Marks an entry in the result store as allocated (used), binds it to a label
@@ -79,7 +84,7 @@ static bool _find_entry(uint32_t *pu32EntryIdx, uint32_t u32Label) {
   return false;
 }
 
-// ====================== driver functions ======================
+// -------------- Interface functions --------------
 
 /**
  * Initializes the static variables of the lockmgr module.

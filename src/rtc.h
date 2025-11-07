@@ -13,6 +13,10 @@ extern "C" {
 
 #include "esp32types.h"
 
+  // ============== Defines ==============
+
+  // ============== Types ==============
+
   // Based on:
   // https://github.com/espressif/esp-idf/blob/6b3da6b188/components/soc/esp32/include/soc/rtc_reg.h
 
@@ -69,7 +73,12 @@ extern "C" {
     Reg BROWN_OUT;
   } RTC_Type;
 
+  // ============== Global values / References ==============
   extern RTC_Type gsRTC;
+
+  // ============== Inline interface functions ==============
+
+  // ============== Interface functions ==============
 
 #ifdef __cplusplus
 }

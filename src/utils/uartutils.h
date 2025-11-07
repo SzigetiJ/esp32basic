@@ -12,7 +12,15 @@ extern "C" {
 #endif
 
 #include "uart.h"
+  // ============== Defines ==============
 
+  // ============== Types ==============
+
+  // ============== Global values / References ==============
+
+  // ============== Inline interface functions ==============
+
+  // ============== Interface functions ==============
   int uart_printf(UART_Type *psUART, const char *pcFormat, ...);
 
 #ifdef __cplusplus

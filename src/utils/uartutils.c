@@ -22,7 +22,14 @@
 #include "uartutils.h"
 #include "typeaux.h"
 
+// ============== Defines ==============
 #define BUFFER_SIZE 128
+
+// ============== Local types ==============
+// ============== Internal function declarations ==============
+
+// ============== Implementation ==============
+// -------------- Interface functions --------------
 
 /**
  * printf with UART TX buffer as destination.

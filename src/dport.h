@@ -13,8 +13,11 @@ extern "C" {
 
 #include "esp32types.h"
 
+  // ============== Defines ==============
+
 #define DPORT_PERIP_BIT_RMT 9U
 
+  // ============== Types ==============
   // Based on:
   // https://github.com/espressif/esp-idf/blob/6b3da6b188/components/soc/esp32/include/soc/dport_reg.h
 
@@ -306,11 +309,15 @@ extern "C" {
     Reg APP_VECBASE_SET;
   } DPORT_Type;
 
+  // ============== Global values / References ==============
   extern DPORT_Type gsDPORT;
 
+  // ============== Inline interface functions ==============
   static inline DPORT_Type *dport_regs() {
     return &gsDPORT;
   }
+
+  // ============== Interface functions ==============
 
 #ifdef __cplusplus
 }

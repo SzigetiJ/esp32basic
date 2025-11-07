@@ -13,6 +13,14 @@ extern "C" {
 
 #include "esp32types.h"
 
+  // ============== Defines ==============
+#define UART_TCK2CLKDIV(X) (((X) >> 4) & 0xfffff) | (((X) & 0xf) << 20)
+  // X: requested UART CLK frequency
+  // Y: source CLK frequency (APB or REF)
+#define UART_HZ2CLKDIV(X, Y) UART_TCK2CLKDIV(((Y) << 4) / (X))
+
+  // ============== Types ==============
+
   typedef enum {
     UART_CTL0 = 0,
     UART_CTL1,
@@ -54,7 +62,7 @@ extern "C" {
       uint32_t u20ClkDiv : 20;   ///< Integral part of the divisor
       uint32_t u4ClkDivFrag : 4;  ///< Decimal part of the divisor
       uint32_t rsvd24 : 8;
-    };
+    } ;
     volatile uint32_t raw;
   } SUartDivReg;
 
@@ -122,7 +130,7 @@ extern "C" {
     Reg ESC_SEQ_CONF[4];  // RW
   } UHCI_Type;
 
-  // ============ Global values =====================
+  // ============== Global values / References ==============
   extern UART_Type gsUART0;
   extern UART_Type gsUART1;
   extern UART_Type gsUART2;
@@ -134,13 +142,13 @@ extern "C" {
   extern UHCI_Type gsUHCI0;
   extern UHCI_Type gsUHCI1;
 
-  // ============ inline functions =====================
+  // ============== Inline interface functions ==============
 
   static inline uint32_t uart_tx_cnt(UART_Type *psUart) {
     return ((psUart->STATUS >> 16) & 0xff) | (((psUart->MEM_CNT_STATUS >> 3) & 0x7) << 8);
   }
 
-  // ============ interface functions =====================
+  // ============== Interface functions ==============
   void uart_init_udma(EUartController eUart, EUdmaController eUdma);
 
 #ifdef __cplusplus

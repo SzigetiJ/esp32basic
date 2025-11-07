@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 SZIGETI János
+ * Copyright 2025 SZIGETI János
  *
  * This file is part of Bilis ESP32 Basic, which is released under GNU General Public License.version 3.
  * See LICENSE or <https://www.gnu.org/licenses/> for full license details.
@@ -74,9 +74,8 @@ static volatile uint64_t gu64TckUdmaTxTotalEof;
 static char gacTestPattern[TEST_PATTERN_LENGTH];
 static UdmaDescriptor gsUdmaDesc;
 
-// Implementation
-
-// ==================== Local Functions ================
+// ============== Implementation ==============
+// -------------- Internal functions --------------
 static void _pattern_init() {
   for (int i = 0; i < TEST_PATTERN_LENGTH; ++i) {
     gacTestPattern[i] = '0' + (i % 10);
@@ -84,17 +83,7 @@ static void _pattern_init() {
 }
 
 static void _uart_init() {
-#define UART_CLKDIV_INT HZ2APBTICKS(UART_FREQ_HZ)
-#define UART_CLKDIV_REM (APB_FREQ_HZ - (UART_CLKDIV_INT * UART_FREQ_HZ))
-#define UART_CLKDIV_FRAG ((16U * UART_CLKDIV_REM) / UART_FREQ_HZ)
-  // version A)
-  gpsUART->CLKDIV.u20ClkDiv = UART_CLKDIV_INT;
-  gpsUART->CLKDIV.u4ClkDivFrag = UART_CLKDIV_FRAG;
-  // version B)
-  //  gpsUART->CLKDIV.raw = UART_CLKDIV_INT | (UART_CLKDIV_FRAG << 20);  // this line results in shorter binary file
-#undef UART_CLKDIV_FRAG
-#undef UART_CLKDIV_REM
-#undef UART_CLKDIV_INT
+  gpsUART->CLKDIV.raw = UART_HZ2CLKDIV(UART_FREQ_HZ, APB_FREQ_HZ);
   uart_init_udma(geUart, geUdma);
   gpsUHCI->INT_ENA = (1 << UHCI_INT_OUTTOTALEOF) | (1 << UHCI_INT_OUTDONE);
 
@@ -173,7 +162,7 @@ IRAM_ATTR static void _uhci_isr(void *pvParam) {
   }
 }
 
-// ====================== Interface functions =========================
+// -------------- Interface functions --------------
 
 void prog_init_pro_pre() {
   _uart_init();

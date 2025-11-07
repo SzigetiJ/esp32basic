@@ -14,8 +14,15 @@
 extern "C" {
 #endif
 
+  // ============== Local defines ==============
 #define ZERO_CHR '0'
 #define HEXA_LO_CHR 'a'
+
+  // ============== Types ==============
+
+  // ============== Global values / References ==============
+
+  // ============== Inline interface functions ==============
 
   static inline char *str_append(char *dst, const char *src) {
     return strcpy(dst, src) + strlen(src);
@@ -101,6 +108,8 @@ extern "C" {
     }
     return (c & 0xf);
   }
+
+  // ============== Interface functions ==============
 
 #undef ZERO_CHR
 #undef HEXA_LO_CHR

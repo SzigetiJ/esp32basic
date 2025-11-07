@@ -157,7 +157,7 @@ extern "C" {
     Reg rVersion;
   } RMT_Type;
 
-  // ============== Values / References ==============
+  // ============== Global values / References ==============
   extern RMT_Type gsRMT;
   extern Reg grRMTRAM[RMT_CHANNEL_NUM * RMT_RAM_BLOCK_SIZE];
   static RMT_Type *gpsRMT = &gsRMT;

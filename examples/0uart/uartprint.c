@@ -32,20 +32,11 @@ const uint64_t gu64tckSchedulePeriod = (CLK_FREQ_HZ / SCHEDULE_FREQ_HZ);
 static UART_Type *gpsUART0 = &gsUART0;
 static UART_Type *gpsUART0M = &gsUART0Mapped;
 
-// Implementation
+// ============== Implementation ==============
+// -------------- Internal functions --------------
 
 static void _uart_init() {
-#define UART0_CLKDIV_INT HZ2APBTICKS(UART0_FREQ_HZ)
-#define UART0_CLKDIV_REM (APB_FREQ_HZ - (UART0_CLKDIV_INT * UART0_FREQ_HZ))
-#define UART0_CLKDIV_FRAG ((16U * UART0_CLKDIV_REM) / UART0_FREQ_HZ)
-// version A)
-  gsUART0.CLKDIV.u20ClkDiv = UART0_CLKDIV_INT;
-  gsUART0.CLKDIV.u4ClkDivFrag = UART0_CLKDIV_FRAG;
-// version B)
-//  gsUART0.CLKDIV.raw = UART0_CLKDIV_INT | (UART0_CLKDIV_FRAG << 20);  // this line results in shorter binary file
-#undef UART0_CLKDIV_FRAG
-#undef UART0_CLKDIV_REM
-#undef UART0_CLKDIV_INT
+  gpsUART0->CLKDIV.raw = UART_HZ2CLKDIV(UART0_FREQ_HZ, APB_FREQ_HZ);
 }
 
 static void _uart_cycle(uint64_t u64tckNow) {
@@ -106,7 +97,7 @@ static void _uart_cycle(uint64_t u64tckNow) {
   }
 }
 
-// ====================== Interface functions =========================
+// -------------- Interface functions --------------
 
 void prog_init_pro_pre() {
   _uart_init();

@@ -13,6 +13,9 @@ extern "C" {
 
 #include "esp32types.h"
 
+  // ============== Defines ==============
+
+  // ============== Types ==============
   /// IOMUX GPIO configuration register structure.
 
   typedef volatile union {
@@ -30,10 +33,11 @@ extern "C" {
       uint32_t u2FunDrv : 2;
       uint32_t u3McuSel : 3;
       uint32_t rsvd15 : 17;
-    };
+    } ;
     uint32_t raw;
   } IomuxGpioConfReg;
 
+  // ============== Global values / References ==============
   /// Register address shift values for IOMUX GPIO configuration registers,
   /// where the base is grIOMUX. Shift is measured in sizeof(Reg).
   static const uint8_t gau8IomuxGpioIdx[] = {
@@ -49,14 +53,18 @@ extern "C" {
 
   extern Reg grIOMUX; ///< IOMUX base register (IOMUX PIN CTRL)
 
-  /// Sets IOMUX GPIO configuration register for a given GPIO.
+  // ============== Inline interface functions ==============
 
+  /// Sets IOMUX GPIO configuration register for a given GPIO.
   static inline void iomux_set_gpioconf(uint8_t u8GpioNum, IomuxGpioConfReg rGpioConf) {
     register_set(&grIOMUX + gau8IomuxGpioIdx[u8GpioNum], rGpioConf.raw);
   }
+
   static inline Reg iomux_get_gpioconf(uint8_t u8GpioNum) {
     return register_read(&grIOMUX + gau8IomuxGpioIdx[u8GpioNum]);
   }
+
+  // ============== Interface functions ==============
 
 #ifdef __cplusplus
 }

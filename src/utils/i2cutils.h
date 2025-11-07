@@ -14,6 +14,9 @@
 extern "C" {
 #endif
 
+  // ============== Defines ==============
+
+  // ============== Types ==============
   typedef struct {
     uint32_t u32LastLabel;
     uint8_t au8Slave[16];
@@ -21,6 +24,11 @@ extern "C" {
     bool bWaitingForI2c;
   } SI2cScanStateDesc;
 
+  // ============== Global values / References ==============
+
+  // ============== Inline interface functions ==============
+
+  // ============== Interface functions ==============
   /**
    * Initializes an SI2cScanStateDesc object.
    * @return Clean SI2cScanStateDesc object.

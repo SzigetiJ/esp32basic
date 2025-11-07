@@ -12,6 +12,8 @@
 #include "rmt.h"
 #include "romfunctions.h"
 
+// ============== Defines ==============
+
 // ============= Local types ===============
 
 typedef struct {
@@ -27,7 +29,8 @@ SRmtIntDispatcher gsIntDispatcher;
 void _dispatch_isr(void *pvParam);
 
 
-// ============== Internal functions ==============
+// ============== Implementation ==============
+// -------------- Internal functions --------------
 
 IRAM_ATTR void _dispatch_isr(void *pvParam) {
   SRmtIntDispatcher *psParam = (SRmtIntDispatcher*)pvParam;
@@ -51,7 +54,7 @@ IRAM_ATTR void _dispatch_isr(void *pvParam) {
   }
 }
 
-// ============== Interface functions ==============
+// -------------- Interface functions --------------
 
 /**
  * Initializes (clears) ISR dispatcher information table.

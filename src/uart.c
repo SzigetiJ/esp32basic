@@ -8,9 +8,11 @@
 #include "dport.h"
 #include "uart.h"
 
+// ============== Defines ==============
 #define DPORT_UHCI0_BIT 8U
 #define DPORT_UHCI1_BIT 12U
 
+// ============== Local types ==============
 typedef struct  {
   uint32_t u12Size : 12;
   uint32_t u12Length : 12;
@@ -21,6 +23,11 @@ typedef struct  {
   void *psNext;
 } UdmaDescriptor;
 
+// ============== Internal function declarations ==============
+static inline uint8_t _dport_peri_bit(EUdmaController eUdma);
+
+// ============== Implementation ==============
+// -------------- Internal functions --------------
 
 /**
  * Get DPORT_PERIP_{CLK|RST}_EN_REG bit of the given UDMA controller.
@@ -32,7 +39,7 @@ static inline uint8_t _dport_peri_bit(EUdmaController eUdma) {
 }
 
 
-// ============ interface functions =====================
+// -------------- Interface functions --------------
 
 void uart_init_udma(EUartController eUart, EUdmaController eUdma) {
   // enable controller

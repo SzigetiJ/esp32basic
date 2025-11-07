@@ -13,6 +13,9 @@ extern "C" {
 
 #include <stdbool.h>
 
+  // ============== Defines ==============
+
+  // ============== Types ==============
   typedef enum {
     LOCKMGR_I2C0 = 0,
     LOCKMGR_I2C1 = 1,
@@ -29,6 +32,11 @@ extern "C" {
     uint8_t *pu8ReceiveBuffer;
   } AsyncResultEntry;
 
+  // ============== Global values / References ==============
+
+  // ============== Inline interface functions ==============
+
+  // ============== Interface functions ==============
   void lockmgr_init();
   bool lockmgr_acquire_lock(ELockmgrResource eBus, uint32_t *pu32Label);
   bool lockmgr_is_locked(ELockmgrResource eBus);

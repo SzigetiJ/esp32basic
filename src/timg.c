@@ -9,6 +9,15 @@
 #include "timg.h"
 #include "xtutils.h"
 
+// ============== Defines ==============
+
+// ============== Local types ==============
+// ============== Internal function declarations ==============
+
+// ============== Implementation ==============
+// -------------- Internal functions --------------
+// -------------- Interface functions --------------
+
 void timg_callback_dt(TimerId sTimer, uint64_t u64tckDelay, uint8_t u8Int, Isr fCallback, void *pvCallbackParam) {
   uint64_t u64tckTimestamp = timg_ticks(sTimer) + u64tckDelay;
   timg_callback_at(u64tckTimestamp, CPU_PRO, sTimer, u8Int, fCallback, pvCallbackParam);

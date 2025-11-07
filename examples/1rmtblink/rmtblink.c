@@ -55,7 +55,8 @@ static const uint16_t gu16usBlinkLenBase = 25000U;
 static const uint16_t gu8BlinkLenMul = (BLINKLEN_MS * 1000) / (2 * gu16usBlinkLenBase);   // BLINKLEN=200 => 4.
 static const uint8_t gu8BlinkMax = 8;
 
-// ==================== Implementation ================
+// ============== Implementation ==============
+// -------------- Internal functions --------------
 
 static void _rmt_config_channel(ERmtChannel eChannel, bool bLevel, bool bHoldLevel) {
   // rmt channel config
@@ -104,7 +105,7 @@ static void _rmtblink_cycle(uint64_t u64Ticks) {
   }
 }
 
-// ====================== Interface functions =========================
+// -------------- Interface functions --------------
 
 void prog_init_pro_pre() {
   _rmtblink_init();

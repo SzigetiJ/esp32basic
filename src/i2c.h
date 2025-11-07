@@ -14,6 +14,7 @@ extern "C" {
 #include <stdbool.h>
 #include "esp32types.h"
 
+  // ============== Defines ==============
 #define I2C_INT_END_DETECTED        0x0008  ///< END command
 #define I2C_INT_ARB_LOSS            0x0020  ///< SDA mismatch while SCL high
 #define I2C_INT_MASTER_TRANS_COMPL  0x0040  ///< as master: byte sent/recvd
@@ -27,7 +28,7 @@ extern "C" {
 #define I2C_INT_MASK_ERR            (I2C_INT_ARB_LOSS | I2C_INT_TIMEOUT | I2C_INT_ACK_ERR)  ///< union of error flags
 #define I2C_INT_MASK_ALL            0x1FE8  ///< union of all documented flags
 
-  // ============ Types =====================
+  // ============== Types ==============
 
   typedef struct {
     Reg SCL_LOW_PERIOD; // 0x00, bits 0..13
@@ -72,6 +73,7 @@ extern "C" {
   extern I2C_Type gsI2C0;
   extern I2C_Type gsI2C1;
 
+  // ============== Inline interface functions ==============
   static inline I2C_Type *i2c_regs(EI2CBus u8Bus) {
     return u8Bus == I2C0 ? &gsI2C0 : &gsI2C1;
   }
@@ -125,6 +127,7 @@ extern "C" {
 
   }
 
+  // ============== Inline functions ==============
   void i2c_write(EI2CBus eBus, uint8_t u8Addr, uint8_t u8Len, const uint8_t *pu8Dat);
   void i2c_read(EI2CBus eBus, uint8_t u8Addr, uint8_t u8RxLen);
   void i2c_read_mem(EI2CBus eBus, uint8_t u8Addr, uint8_t u8MemAddr, uint8_t u8RxLen);

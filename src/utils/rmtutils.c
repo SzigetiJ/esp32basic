@@ -9,13 +9,16 @@
 
 #include "rmtutils.h"
 
+// ============== Local types ==============
+
 // ============== Internal function declarations ==============
 static uint32_t _pairgen_next(U16Generator pfGen, UniRel pfEnd, void *pvParam);
 static uint16_t _stretchgen_next(void *pvState);
 static bool _stretchgen_end(const void *pvState);
 
 
-// ============== Internal functions ==============
+// ============== Implementation ==============
+// -------------- Interface functions --------------
 
 /**
  * Makes a uint32_t value from two uint16_t values taken from pfGen.
@@ -57,7 +60,7 @@ static bool _stretchgen_end(const void *pvParam) {
   return psParam->fGenEnd(psParam->pvGenParam) && (psParam->u32OutQueue == 0);
 }
 
-// ============== Interface functions ==============
+// -------------- Interface functions --------------
 
 uint32_t rmtutils_copytoram(ERmtChannel eChannel, uint8_t u8Blocks, uint32_t u32Offset, uint32_t *pu32Src, uint32_t u32Len) {
   for (uint32_t i = 0; i < u32Len; ++i) {

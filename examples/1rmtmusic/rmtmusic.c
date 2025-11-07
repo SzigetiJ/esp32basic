@@ -32,6 +32,8 @@
 
 #define UPDATE_PERIOD_MS   250U     ///< Period of the control cycle (_rmtmusic_cycle())
 
+#define UART_FREQ_HZ 115200U
+
 // #2: Channels / wires / addresses
 #define RMTMUSIC_GPIO        2U
 #define RMTMUSIC_CH     RMT_CH0
@@ -111,7 +113,8 @@ static uint32_t gau32RotationLen[ARRAY_SIZE(gasVarShift) + 1]; ///< This array w
 
 static SMusicRmtStateDesc gsMusicState; ///< ISR parameter
 
-// ==================== Implementation ================
+// ============== Implementation ==============
+// -------------- Internal functions --------------
 
 /**
  * Transforms a single ON / OFF signal given as (u32Period, bLevel) pair
@@ -261,7 +264,7 @@ static void _rmtmusic_init() {
   _rmt_config_channel(RMTMUSIC_CH, 0, 0);
 
   // we do some logging, hence set UART0 speed
-  gsUART0.CLKDIV.u20ClkDiv = APB_FREQ_HZ / 115200;
+  gsUART0.CLKDIV.raw = UART_HZ2CLKDIV(UART_FREQ_HZ, APB_FREQ_HZ);
 
   // register ISR and enable it
   rmt_isr_init();
@@ -305,7 +308,7 @@ static void _rmtmusic_cycle(uint64_t u64Ticks) {
   }
 }
 
-// ====================== Interface functions =========================
+// -------------- Interface functions --------------
 
 void prog_init_pro_pre() {
 

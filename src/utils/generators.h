@@ -15,7 +15,9 @@ extern "C" {
 #include <stdint.h>
 #include <stddef.h>
 
-  // ============= Types ===============
+  // ============== Defines ==============
+
+  // ============== Types ==============
 
   /**
    * The byte generator takes a byte array and iterated over it

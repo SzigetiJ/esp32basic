@@ -172,6 +172,9 @@ static PeriodicCallbackDesc gsPCbDesc = {
   .u64tckAlarmCur = 0
 };
 
+// ============== Implementation ==============
+// -------------- Internal functions --------------
+
 static void _uart_print_header(UART_Type *psUart, uint64_t u64tckNow, const char* strModuleName) {
   uart_printf(psUart, "[%d:%s]", (uint32_t)(u64tckNow / TICKS_PER_MS), strModuleName);
 }
@@ -218,7 +221,7 @@ static void _init_drivers() {
 }
 
 static void _init_uart() {
-  gpsUART0->CLKDIV.u20ClkDiv = APB_FREQ_HZ / UART_FREQ_HZ;
+  gpsUART0->CLKDIV.raw = UART_HZ2CLKDIV(UART_FREQ_HZ, APB_FREQ_HZ);
 
   Reg rUartMemConf = gpsUART0->MEM_CONF;
   rUartMemConf &= ~(0xf << 7);
@@ -656,7 +659,7 @@ static void _schedule_isr() {
   timg_callback_at(gsPCbDesc.u64tckAlarmCur, gsPCbDesc.eCpu, gsPCbDesc.sTimer, gsPCbDesc.u8Int, &_timer_isr, (void*) &gsPCbDesc);
 }
 
-// ====================== Interface functions =========================
+// -------------- Interface functions --------------
 
 void prog_init_pro_pre() {
   _init_uart();

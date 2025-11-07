@@ -13,6 +13,10 @@ extern "C" {
 
 #include "esp32types.h"
 
+  // ============== Defines ==============
+
+  // ============== Types ==============
+
   typedef enum {
     TIMG_0 = 0,
     TIMG_1 = 1
@@ -66,6 +70,7 @@ extern "C" {
     Reg INT_CLR_TIMERS;
   } TIMG_Type;
 
+  // ============== Global values / References ==============
   extern TIMG_Type gsTIMG0;
   extern TIMG_Type gsTIMG1;
   static TIMG_Type *gapsTIMG[] = {
@@ -73,6 +78,7 @@ extern "C" {
     &gsTIMG1
   };
 
+  // ============== Inline interface functions ==============
   static inline TimerRegs *timg_tregs(TimerId sTimer) {
     return &gapsTIMG[sTimer.eTimg]->T[sTimer.eTimer];
   }
@@ -92,6 +98,8 @@ extern "C" {
   timg_tregs(sTimer)->CONFIG = (1 << 31) | (1 << 30) | (u16Divisor << 13);
   timg_load(sTimer, 0ULL);
 }
+
+  // ============== Interface functions ==============
 
   void timg_callback_dt(TimerId sTimer, uint64_t u64tckDelay, uint8_t u8Int, Isr fCallback, void *pvCallbackParam);
   void timg_callback_at(uint64_t u64tckAlarm, ECpu eCpu, TimerId sTimer, uint8_t u8Int, Isr fCallback, void *pvCallbackParam);

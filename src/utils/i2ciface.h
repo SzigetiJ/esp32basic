@@ -1,3 +1,9 @@
+/*
+ * Copyright 2025 SZIGETI János
+ *
+ * This file is part of Bilis ESP32 Basic, which is released under GNU General Public License.version 3.
+ * See LICENSE or <https://www.gnu.org/licenses/> for full license details.
+ */
 #ifndef I2CIFACE_H
 #define I2CIFACE_H
 
@@ -8,6 +14,9 @@ extern "C" {
 #include "i2c.h"
 #include "lockmgr.h"
 
+  // ============== Defines ==============
+
+  // ============== Types ==============
   /**
    * Interface information how to access I2C slave device.
    */
@@ -17,6 +26,11 @@ extern "C" {
     ELockmgrResource eLck;
   } SI2cIfaceCfg;
 
+  // ============== Global values / References ==============
+
+  // ============== Inline interface functions ==============
+
+  // ============== Interface functions ==============
 #ifdef __cplusplus
 }
 #endif
