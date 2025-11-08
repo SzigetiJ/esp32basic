@@ -362,10 +362,10 @@ static void _bme280_init(SBme280StateDesc *psState, SI2cIfaceCfg *psIface) {
 
 static void _bme280_print_result(uint64_t u64tckNow, const SBme280TPH *psRes, uint32_t u32TFine) {
   _uart_print_header(gpsUART0, u64tckNow, "BME280");
-  uart_printf(gpsUART0, "\r\n  Tfine: %d\r\n", u64tckNow / TICKS_PER_MS, u32TFine);
+  uart_printf(gpsUART0, "\r\n  Tfine: %d\r\n", u32TFine);
   uart_printf(gpsUART0, "  Temp: %d.%02d\r\n", psRes->i32Temp / 100, psRes->i32Temp % 100);
-  uart_printf(gpsUART0, "  Pres: %d.%02d\r\n", psRes->i32Pres >> 8, ((psRes->i32Pres & 0xff)*391) / 1000);
-  uart_printf(gpsUART0, "  Hum: %d.%03d\r\n", psRes->i32Hum >> 10, ((psRes->i32Hum & 0x3ff)*97657) / 100000);
+  uart_printf(gpsUART0, "  Pres: %d.%02d\r\n", psRes->i32Pres >> 8, ((psRes->i32Pres & 0xff) * 391) / 1000);
+  uart_printf(gpsUART0, "  Hum: %d.%03d\r\n", psRes->i32Hum >> 10, ((psRes->i32Hum & 0x3ff) * 97657) / 100000);
 }
 
 static void _bme280_cycle(uint64_t u64tckNow) {
