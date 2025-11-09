@@ -24,10 +24,6 @@ extern "C" {
 
   // ============== Inline interface functions ==============
 
-  static inline char *str_append(char *dst, const char *src) {
-    return strcpy(dst, src) + strlen(src);
-  }
-
   static inline char *print_dec_padded(char *dst, uint32_t u32Value, uint8_t u8Width, char cPad) {
     for (int i = 0; i < u8Width; ++i) {
       dst[u8Width - 1 - i] = u32Value ? ZERO_CHR + u32Value % 10U : cPad;

@@ -23,12 +23,39 @@
 // ============== Local types ==============
 
 // ============== Internal function declarations ==============
+static inline uint8_t _address(uint8_t u8RawAddr, bool bWrite);
+static inline uint8_t _address_read(uint8_t u8RawAddr);
+static inline uint8_t _address_write(uint8_t u8RawAddr);
+static inline uint8_t _cmd_read_to_regs(Reg *prDest, uint8_t u8RxLen);
 static inline uint8_t _scl_idx(EI2CBus eBus);
 static inline uint8_t _sda_idx(EI2CBus eBus);
 static inline uint8_t _dport_peri_bit(EI2CBus eBus);
 
 // ============== Implementation ==============
 // -------------- Internal functions --------------
+static inline uint8_t _address(uint8_t u8RawAddr, bool bRead){
+  return (u8RawAddr << 1) | (bRead ? 1 : 0);
+}
+
+static inline uint8_t _address_read(uint8_t u8RawAddr) {
+  return _address(u8RawAddr, true);
+}
+static inline uint8_t _address_write(uint8_t u8RawAddr) {
+  return _address(u8RawAddr, false);
+}
+
+static inline uint8_t _cmd_read_to_regs(Reg *prDest, uint8_t u8RxLen) {
+  uint8_t u8MoreBytes = (1 < u8RxLen ? 1 : 0);
+  prDest[0] = i2c_cmd_start();
+  prDest[1] = i2c_cmd_write(true, 1);
+  if (u8MoreBytes) {
+    prDest[2] = i2c_cmd_read(false, u8RxLen - 1);
+  }
+  prDest[2 + u8MoreBytes] = i2c_cmd_read(true, 1);
+  prDest[3 + u8MoreBytes] = i2c_cmd_stop();
+  return 4 + u8MoreBytes;
+}
+
 static inline uint8_t _scl_idx(EI2CBus eBus) {
   return eBus == I2C0 ? I2C0_SCL_IDX : I2C1_SCL_IDX;
 }
@@ -53,8 +80,8 @@ void i2c_write(EI2CBus eBus, uint8_t u8Addr, uint8_t u8Len, const uint8_t *pu8Da
 
   i2c_reset_fifo(psI2C);
 
-  // copy data
-  prData[0] = (u8Addr << 1) | 0; // slave addr
+  // put data to be written into the buffer
+  prData[0] = _address_write(u8Addr);  // slave addr
   for (int i = 0; i < 31 && i < u8Len; ++i) {
     prData[i + 1] = pu8Dat[i];
   }
@@ -71,20 +98,13 @@ void i2c_write(EI2CBus eBus, uint8_t u8Addr, uint8_t u8Len, const uint8_t *pu8Da
 void i2c_read(EI2CBus eBus, uint8_t u8Addr, uint8_t u8RxLen) {
   I2C_Type *psI2C = i2c_regs(eBus);
   RegAddr prData = i2c_nonfifo(eBus);
-  uint8_t u8MoreBytes = (1 < u8RxLen ? 1 : 0);
 
   i2c_reset_fifo(psI2C);
 
-  //   WRITE slave addr to buffer
-  prData[0] = (u8Addr << 1) | 1; // slave addr
+  // put data to be written into the buffer
+  prData[0] = _address_read(u8Addr); // slave addr
 
-  psI2C->COMD[0] = i2c_cmd_start();
-  psI2C->COMD[1] = i2c_cmd_write(true, 1);
-  if (u8MoreBytes) {
-    psI2C->COMD[2] = i2c_cmd_read(false, u8RxLen - 1);
-  }
-  psI2C->COMD[2 + u8MoreBytes] = i2c_cmd_read(true, 1);
-  psI2C->COMD[3 + u8MoreBytes] = i2c_cmd_stop();
+  _cmd_read_to_regs(&psI2C->COMD[0], u8RxLen);
 
   //  CTR
   psI2C->INT_CLR = I2C_INT_MASK_ALL;
@@ -94,24 +114,17 @@ void i2c_read(EI2CBus eBus, uint8_t u8Addr, uint8_t u8RxLen) {
 void i2c_read_mem(EI2CBus eBus, uint8_t u8Addr, uint8_t u8MemAddr, uint8_t u8RxLen) {
   I2C_Type *psI2C = i2c_regs(eBus);
   RegAddr prData = i2c_nonfifo(eBus);
-  uint8_t u8MoreBytes = (1 < u8RxLen ? 1 : 0);
 
   i2c_reset_fifo(psI2C);
 
-  //   WRITE slave addr to buffer
-  prData[0] = (u8Addr << 1) | 0; // slave addr (WR)
+  // put data to be written into the buffer
+  prData[0] = _address_write(u8Addr); // slave addr (WR)
   prData[1] = u8MemAddr;
-  prData[2] = (u8Addr << 1) | 1; // slave addr (RD)
+  prData[2] = _address_read(u8Addr);  // slave addr (RD)
 
   psI2C->COMD[0] = i2c_cmd_start();
-  psI2C->COMD[1] = i2c_cmd_write(true, 2);
-  psI2C->COMD[2] = i2c_cmd_start();
-  psI2C->COMD[3] = i2c_cmd_write(true, 1);
-  if (u8MoreBytes) {
-    psI2C->COMD[4] = i2c_cmd_read(false, u8RxLen - 1);
-  }
-  psI2C->COMD[4 + u8MoreBytes] = i2c_cmd_read(true, 1);
-  psI2C->COMD[5 + u8MoreBytes] = i2c_cmd_stop();
+  psI2C->COMD[1] = i2c_cmd_write(true, 2);  // prData[0..1]
+  _cmd_read_to_regs(&psI2C->COMD[2], u8RxLen);
 
   //  CTR
   psI2C->INT_CLR = I2C_INT_MASK_ALL;

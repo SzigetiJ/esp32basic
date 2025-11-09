@@ -119,7 +119,7 @@ static void IRAM_ATTR _clktxend_isr(void *pvParam) {
  * @param eChannel CLK RMT channel.
  */
 static inline void _init_clkseq(ERmtChannel eChannel) {
-  RegAddr prClkRam = rmt_ram_addr(eChannel, 1, 1);
+  RegAddr prClkRam = rmt_ram_addr(eChannel, 1, 1);    // cppcheck-suppress unusedVariable
   for (int i = 0; i < 9; ++i) {
     prClkRam[i] = RMT_ENTRYPAIR(0, CLK_HALFPERIOD_TICKS, 1, CLK_HALFPERIOD_TICKS);
   }
@@ -134,7 +134,7 @@ static inline void _init_clkseq(ERmtChannel eChannel) {
  * @param bStart START CLK slice has to be added.
  */
 static inline void _update_clkseq(ERmtChannel eChannel, bool bStop, bool bStart) {
-  RegAddr prClkRam = rmt_ram_addr(eChannel, 1, 0);
+  RegAddr prClkRam = rmt_ram_addr(eChannel, 1, 0);    // cppcheck-suppress unusedVariable
   prClkRam[1] = RMT_ENTRYPAIR(0, CLK_HALFPERIOD_TICKS, 1, CLK_HALFPERIOD_TICKS);
   if (bStart && !bStop) {
     prClkRam[0] = RMT_ENTRYPAIR(1, 1, 1, CLK_HALFPERIOD_TICKS - 1);                     // 0.5 periods
@@ -178,7 +178,7 @@ static inline void _dat_dioseq(RegAddr prDioRam, uint8_t u8Dat) {
 static inline void _update_dioseq(ERmtChannel eChannel, bool bStop, bool bStart, uint8_t u8Dat) {
   static uint32_t u32EntryPairStart = RMT_ENTRYPAIR(0, 1, 0, CLK_HALFPERIOD_TICKS - 1);                   // 0.5 periods
   static uint32_t u32EntryPairStop = RMT_ENTRYPAIR(0, 2 * CLK_HALFPERIOD_TICKS, 1, CLK_HALFPERIOD_TICKS); // 1.5 periods
-  RegAddr prDioRam = rmt_ram_addr(eChannel, 1, 0);
+  RegAddr prDioRam = rmt_ram_addr(eChannel, 1, 0);    // cppcheck-suppress unusedVariable
   if (bStart && !bStop) {
     prDioRam[0] = u32EntryPairStart;
     _dat_dioseq(prDioRam + 1, u8Dat);

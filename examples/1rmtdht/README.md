@@ -19,3 +19,4 @@ ESP32.VCC    -- S1.+
 
 #### Practices
 
+You can play around with the predefined values, e.g., `RMTDHT_PERIOD_MS`, `RMTDHT_CH` or `RMTINT_CH`.

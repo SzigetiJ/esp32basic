@@ -30,6 +30,7 @@ static bool _stretchgen_end(const void *pvState);
  * 0; otherwise these bits contain the second value received from the underlying generator.
  */
 static uint32_t _pairgen_next(U16Generator pfGen, UniRel pfEnd, void *pvParam) {
+  // cppcheck-suppress unusedVariable
   uint16_t au16Val[] = {0, 0};
   uint32_t *pu32Val = (uint32_t*) au16Val;
 

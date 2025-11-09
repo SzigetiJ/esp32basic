@@ -73,7 +73,6 @@ With `gu16Tim00Divisor` you can set the granularity of `TG0_Timer0` (I usually s
 Finally, `gu64tckSchedulePeriod` determines how often (i.e., when) `prog_cycle_pro()` and `prog_cycle_app()` functions will be called by
 the scheduler.
 
-
 ### Features
 
 THis list is supposed to grow longer and longer.

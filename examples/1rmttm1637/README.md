@@ -29,3 +29,8 @@ ESP32.VCC    -- X1.VCC
 
 #### Practices
 
+* Write an application that counts down from `10` to `0` (again and again),
+and the numbers are smoothly faded in / faded out.
+
+* First, a square should be displayed in the top left corner (`0x63`).
+Then, this square should move around the display (clockwise).

@@ -75,12 +75,6 @@ typedef struct {
   void *pvParam;
 } InterruptEntry;
 
-typedef struct {
-  uint8_t coreId;
-  uint8_t id;
-  uint8_t prio;
-} InterruptDesc;
-
 typedef enum {
   DISPLAY_INIT,
   DISPLAY_CLRSCR,
