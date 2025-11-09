@@ -416,7 +416,7 @@ static void _bh1750_print_result(uint64_t u64tckTimestamp, const SBh1750StateDes
   };
   EBh1750MeasRes eMRes = bh1750_get_mres(psState);
   uint8_t u8MTime = bh1750_get_mtime(psState);
-  uint8_t u16Result = conv16be(psState->u16beResult);
+  uint16_t u16Result = conv16be(psState->u16beResult);
   uint32_t u32mLx = bh1750_result_to_mlx(u16Result, u8MTime, eMRes);
   uint32_t u32hmsMTime = bh1750_measurementtime_hms(u8MTime, eMRes);
 
