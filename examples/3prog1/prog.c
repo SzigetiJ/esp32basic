@@ -28,6 +28,7 @@
 #include "typeaux.h"
 #include "bme280.h"
 #include "bh1750.h"
+#include "ssd1306.h"
 #include "utils/i2cutils.h"
 #include "utils/uartutils.h"
 
@@ -136,18 +137,6 @@ static volatile uint64_t gu64tckAlarmCur = 0;
 static volatile uint32_t gau32IncVal[] = {0, 0, 0, 0};
 static volatile uint32_t gu32MutexIncProc = 0;
 static const uint8_t gau8LedGpio [] = {2, 4};
-const char gacOledStartSeq[] = {
-  0x00, // command sequence begins
-  0xA8, 0x3F, 0xD3, 0x00, // Set MUX ratio, Set display offset
-  0x40, 0x20, 0x01, 0xA0, // Set display start line, Set segment re-map
-  0xC0, 0xDA, 0x02, // Set COM Output scan direction, Set COM pins hw config
-  0x81, 0x0F, // Set contrast ctrl
-  0xA4, 0xA6, // Disable entire display ON, Set normal display,
-  0xD5, 0x80, 0x8D, 0x14, // Set OSC frequency, Enable charge pump regulator
-  0xAF, // Display on
-  0x00, 0x10, // Reset Column
-  0x22, 0x00, 0x03 // Addressing page range [0,3]
-};
 char gacOledDataSeq[] = {// shift = 3
   0x00, 0x00, 0x00, 0x40, // data sequence begins
   0xAA, 0xAA, 0xAA, 0xAA
@@ -310,7 +299,9 @@ static void _oled_cycle(uint64_t u64tckNow) {
 
       switch (geOledState) {
         case DISPLAY_INIT:
-          i2c_write(OLED_I2C_CH, OLED_I2C_SLAVEADDR, ARRAY_SIZE(gacOledStartSeq), (const uint8_t*) gacOledStartSeq);
+          uint8_t au8Dat[30];
+          uint8_t u8DatLen = ssd1306_get_startseq(au8Dat);
+          i2c_write(OLED_I2C_CH, OLED_I2C_SLAVEADDR, u8DatLen, (const uint8_t*) au8Dat);
           break;
         case DISPLAY_CLRSCR:
           i2c_write(OLED_I2C_CH, OLED_I2C_SLAVEADDR, ARRAY_SIZE(gacOledDataSeq) - 3, (const uint8_t*) gacOledDataSeq + 3);
