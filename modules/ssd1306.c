@@ -13,7 +13,7 @@
 #define CMD_SETDISPOFFS   0xD3
 #define CMD_SETADDRMODE   0x20
 #define CMD_SETCOLRANGE   0x21
-#define CMD_SETPAGERANGE   0x22
+#define CMD_SETPAGERANGE  0x22
 #define CMD_SETSTARTLINE  0x40  // 0x40 .. 0x7F
 #define CMD_SETSEGREMAP   0xA0  // 0xA0 .. 0xA1
 #define CMD_SETSCANDIR    0xC0  // 0xC0 | 0xC8
@@ -60,7 +60,7 @@ static inline uint8_t _cmd_set_mux_ratio(uint8_t *pu8Dest, uint8_t u8Ratio) {
  * @param u8Offset Vertical shift of COM_n to Row_n assignment. Value 1 means COM0 is assigned to Row1. Valid range: 0 (DEFAULT) -- 63.
  * @return Number of written bytes.
  */
-static inline uint8_t _cmd_set_display_offset(uint8_t *pu8Dest, uint8_t u8Offset) {
+uint8_t ssd1306_set_display_offset(uint8_t *pu8Dest, uint8_t u8Offset) {
   pu8Dest[0] = CMD_SETDISPOFFS;
   pu8Dest[1] = u8Offset & 0x3F;
   return 2;
@@ -72,7 +72,7 @@ static inline uint8_t _cmd_set_display_offset(uint8_t *pu8Dest, uint8_t u8Offset
  * @param u8StartLine Amount of vertical shift. Valid range: 0 (DEFAULT) -- 63.
  * @return Number of written bytes.
  */
-static inline uint8_t _cmd_set_display_startline(uint8_t *pu8Dest, uint8_t u8StartLine) {
+uint8_t ssd1306_set_display_startline(uint8_t *pu8Dest, uint8_t u8StartLine) {
   pu8Dest[0] = CMD_SETSTARTLINE | (u8StartLine & 0x3F);
   return 1;
 }
@@ -183,7 +183,7 @@ static inline uint8_t _cmd_set_com_pins_hw_config(uint8_t *pu8Dest, bool bAltPin
  * @param u8Value Contrast (luminance) value (0 .. 255, DEFAULT: 127).
  * @return Number of written bytes.
  */
-static inline uint8_t _cmd_set_contrast_control(uint8_t *pu8Dest, uint8_t u8Value) {
+uint8_t ssd1306_set_contrast_control(uint8_t *pu8Dest, uint8_t u8Value) {
   pu8Dest[0] = CMD_SETCONTRAST;
   pu8Dest[1] = u8Value;
   return 2;
@@ -269,13 +269,13 @@ uint8_t ssd1306_get_startseq(uint8_t *pu8Dest) {
   uint8_t u8Ret = 0;
   u8Ret += _ctrl(pu8Dest, false, false);
   u8Ret += _cmd_set_mux_ratio(&pu8Dest[u8Ret], 0x3F);
-  u8Ret += _cmd_set_display_offset(&pu8Dest[u8Ret], 0x0);
-  u8Ret += _cmd_set_display_startline(&pu8Dest[u8Ret], 0);
+  u8Ret += ssd1306_set_display_offset(&pu8Dest[u8Ret], 0x0);
+  u8Ret += ssd1306_set_display_startline(&pu8Dest[u8Ret], 0);
   u8Ret += _cmd_set_memory_addressing_mode(&pu8Dest[u8Ret], SSD1306_ADDR_VERT);
   u8Ret += _cmd_set_segment_remap(&pu8Dest[u8Ret], true);
   u8Ret += _cmd_set_output_scan_dir(&pu8Dest[u8Ret], false);
   u8Ret += _cmd_set_com_pins_hw_config(&pu8Dest[u8Ret], false, false);
-  u8Ret += _cmd_set_contrast_control(&pu8Dest[u8Ret], 0x0F);
+  u8Ret += ssd1306_set_contrast_control(&pu8Dest[u8Ret], 0x0F);
   u8Ret += _cmd_entire_display_on(&pu8Dest[u8Ret], false);
   u8Ret += _cmd_inverse_display(&pu8Dest[u8Ret], false);
   u8Ret += _cmd_set_display_osc_freq(&pu8Dest[u8Ret], 0x08, 0x00);

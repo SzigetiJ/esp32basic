@@ -11,7 +11,7 @@ In this example different color gradients are smoothly rotating around in a 12 L
 ```
 ESP32.GND    -- LS1.GND
 ESP32.GPIO21 -- LS1.DIN
-EDP32.3V3    -- LS1.+5V
+ESP32.3V3    -- LS1.+5V
 ```
 
 #### Practices

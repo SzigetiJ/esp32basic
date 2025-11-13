@@ -48,8 +48,8 @@
 #define BH1750_RETRY_WAIT_HMS 10U
 
 // #2: Channels / wires / addresses
-#define I2C0_SCL_GPIO 22U
-#define I2C0_SDA_GPIO 23U
+#define I2C1_SCL_GPIO 22U
+#define I2C1_SDA_GPIO 23U
 
 #define OLED_I2C_FREQ_HZ 400000U
 
@@ -200,7 +200,7 @@ static ELockmgrResource _i2c_to_lock(EI2CBus eBus) {
 
 static void _init_drivers() {
   lockmgr_init();
-  i2c_init_controller(OLED_I2C_CH, I2C0_SCL_GPIO, I2C0_SDA_GPIO, HZ2APBTICKS(OLED_I2C_FREQ_HZ));
+  i2c_init_controller(OLED_I2C_CH, I2C1_SCL_GPIO, I2C1_SDA_GPIO, HZ2APBTICKS(OLED_I2C_FREQ_HZ));
 }
 
 static void _init_uart() {
@@ -594,7 +594,7 @@ static void _uartctrl_cycle(uint64_t u64tckNow) {
             break;
           case 'i': // I2C status
             _uart_print_header(gpsUART0, u64tckNow, "CTRL");
-            uart_printf(gpsUART0, " GPIO_FUNC_OUT: %08X %08X", gpio_regs()->FUNC_OUT_SEL_CFG[I2C0_SCL_GPIO], gpio_regs()->FUNC_OUT_SEL_CFG[I2C0_SDA_GPIO]);
+            uart_printf(gpsUART0, " GPIO_FUNC_OUT: %08X %08X", gpio_regs()->FUNC_OUT_SEL_CFG[I2C1_SCL_GPIO], gpio_regs()->FUNC_OUT_SEL_CFG[I2C1_SDA_GPIO]);
             uart_printf(gpsUART0, "\tI2C Regs: %08X %08X %08X %08X\r\n", i2c_regs(I2C0)->SR, i2c_regs(I2C0)->FIFO_CONF, i2c_regs(I2C0)->INT_RAW, i2c_regs(I2C0)->INT_ST);
             break;
           case 'l': // show locks

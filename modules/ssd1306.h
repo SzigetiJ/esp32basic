@@ -12,6 +12,9 @@
 extern "C" {
 #endif
 
+  uint8_t ssd1306_set_display_offset(uint8_t *pu8Dest, uint8_t u8Offset);
+  uint8_t ssd1306_set_display_startline(uint8_t *pu8Dest, uint8_t u8StartLine);
+  uint8_t ssd1306_set_contrast_control(uint8_t *pu8Dest, uint8_t u8Value);
   uint8_t ssd1306_get_startseq(uint8_t *pu8Dest);
 
 

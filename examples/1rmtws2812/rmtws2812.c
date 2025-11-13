@@ -92,6 +92,8 @@ static SWs2812State gsFeederState;
 static bool gbFeederBusy = false;
 
 // ==================== Implementation ================
+// -------------- Internal functions --------------
+
 static void _fill_prebuffer(uint8_t *pu8Dest, uint8_t u8Stop0Idx, uint8_t u8Stop1Idx) {
   for (int i = 0; i < STRIP_FRONT_LEN; ++i) {
     memcpy(pu8Dest + (3 * i), gasStops[u8Stop0Idx], 3);
@@ -237,7 +239,7 @@ static void _buf_update_cycle(uint64_t u64Ticks) {
 }
 
 
-// ====================== Interface functions =========================
+// -------------- Interface functions --------------
 
 void prog_init_pro_pre() {
   // we do some logging, hence set UART0 speed
