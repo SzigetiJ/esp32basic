@@ -1,7 +1,7 @@
 include $(top_srcdir)/scripts/elf2bin.mk
 include $(top_srcdir)/ld/flags.mk
 
-noinst_HEADERS = defines.h
+noinst_HEADERS = defines.h ascii8x8.h
 
 AM_CFLAGS  = -std=c11 -flto
 if WITH_BINARIES
@@ -28,7 +28,7 @@ LDADD = $(top_builddir)/src/libesp32basic.a $(top_builddir)/modules/libesp32modu
 bin_PROGRAMS = \
  i2cssd1306.elf
 
-rmtws2812_elf_SOURCES = i2cssd1306.c
+i2cssd1306_elf_SOURCES = i2cssd1306.c ascii8x8.c
 
 if WITH_BINARIES
 CLEANFILES = \

@@ -27,6 +27,7 @@ extern "C" {
 #define NS_PER_TICKS        (1000000000 / CLK_FREQ_HZ)
 
 #define TICKS2NS(X)         ((X) * NS_PER_TICKS)
+#define TICKS2US(X)         ((X) / TICKS_PER_US)
 #define MS2TICKS(X)         ((X) * TICKS_PER_MS)
 #define HZ2APBTICKS(X)     (APB_FREQ_HZ / (X))
 

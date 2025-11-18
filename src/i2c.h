@@ -15,6 +15,8 @@ extern "C" {
 #include "esp32types.h"
 
   // ============== Defines ==============
+#define I2C_CHANNEL_NUM     2U
+
 #define I2C_INT_END_DETECTED        0x0008  ///< END command
 #define I2C_INT_ARB_LOSS            0x0020  ///< SDA mismatch while SCL high
 #define I2C_INT_MASTER_TRANS_COMPL  0x0040  ///< as master: byte sent/recvd
@@ -72,8 +74,11 @@ extern "C" {
   // ============ Global values =====================
   extern I2C_Type gsI2C0;
   extern I2C_Type gsI2C1;
+  //  static I2C_Type *gpsI2C0 = &gsI2C0;
+  //  static I2C_Type *gpsI2C1 = &gsI2C1;
 
   // ============== Inline interface functions ==============
+
   static inline I2C_Type *i2c_regs(EI2CBus u8Bus) {
     return u8Bus == I2C0 ? &gsI2C0 : &gsI2C1;
   }
@@ -111,6 +116,11 @@ extern "C" {
     return (0 != (psI2C->SR & 0x10));
   }
 
+  static inline uint32_t i2c_fifo_st_value(I2C_Type *psI2C, bool bTx, bool bStart) {
+    uint8_t u8Shift = (bTx ? 10 : 0) + (bStart ? 0 : 5);
+    return (psI2C->FIFO_ST >> u8Shift) & 0x1F;
+  }
+
   static inline void i2c_settiming(I2C_Type *psI2C, uint32_t u32Period) {
     uint32_t u32HPeriod = u32Period / 2;
     uint32_t u32QPeriod = u32HPeriod / 2;
@@ -127,8 +137,12 @@ extern "C" {
 
   }
 
-  // ============== Inline functions ==============
-  void i2c_write(EI2CBus eBus, uint8_t u8Addr, uint8_t u8Len, const uint8_t *pu8Dat);
+  // -------------- Interface functions --------------
+  void i2c_isr_init();
+  void i2c_isr_start(ECpu eCpu, EI2CBus eBus, uint8_t u8IntChannel);
+  uint8_t i2c_isr_register(EI2CBus eBus, uint32_t u32IntMask, Isr fIsr, void *pvParam);
+  void i2c_isr_unregister(EI2CBus eBus, uint8_t u8Idx);
+  void i2c_write(EI2CBus eBus, uint8_t u8Addr, uint32_t u32Len, const uint8_t *pu8Dat);
   void i2c_read(EI2CBus eBus, uint8_t u8Addr, uint8_t u8RxLen);
   void i2c_read_mem(EI2CBus eBus, uint8_t u8Addr, uint8_t u8MemAddr, uint8_t u8RxLen);
   void i2c_init_controller(EI2CBus e8Bus, uint8_t u8SclPin, uint8_t u8SdaPin, uint32_t u32tckPeriod);
