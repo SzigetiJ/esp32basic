@@ -116,7 +116,7 @@ static void _rotate_clockwise(uint8_t *pu8Dest, const uint8_t *pu8Src) {
   for (int i = 0; i < 8; ++i) {
     pu8Dest[i] = 0;
     for (int j = 0; j < 8; ++j) {
-      pu8Dest[i] |= (pu8Src[j]&(1 << (7 - i)) ? 1 : 0) << j;
+      pu8Dest[i] |= ((pu8Src[j] & (1 << (7 - i))) ? 1 : 0) << j;
     }
   }
 }

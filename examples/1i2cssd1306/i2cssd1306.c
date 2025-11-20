@@ -65,6 +65,14 @@ typedef enum {
   OLED_DATA_WRITE
 } EOledState;
 
+typedef struct {
+  bool bFirstRun;
+  EOledState eState;
+  uint32_t u32LastLabel;
+  uint8_t u8FilledColumns;
+  uint8_t u8CmdWriteCycle;
+  uint32_t u32TotalDataWrites;
+} SOledStateVariables;
 
 // ================ Local function declarations =================
 static void _i2c_release_cycle(uint64_t u64tckNow);
@@ -75,6 +83,7 @@ void _i2c_start(void *pvParam);
 void _i2c_compl(void *pvParam);
 void _i2c_feed(void *pvParam);
 static void _oled_init();
+static void _oled_inner_cycle(uint64_t u64tckNow, uint32_t u32NextLabel);
 
 // =================== Global constants ================
 const bool gbStartAppCpu = START_APP_CPU;
@@ -193,123 +202,120 @@ static void _oled_init() {
   ssd1306_ctrl(gau8DataSeq2, false, true);
   for (int i = 0; i < COLS_TO_FILL; ++i) {
     for (int j = 0; j < PAGES_TO_FILL; ++j) {
-      gau8DataSeq2[1+i*PAGES_TO_FILL+j] = au8Pattern[i%ARRAY_SIZE(au8Pattern)];
+      gau8DataSeq2[1 + i * PAGES_TO_FILL + j] = au8Pattern[i % ARRAY_SIZE(au8Pattern)];
     }
   }
   // clear command buffer
   memset(gau8OledTxBuffer, 0x00, ARRAY_SIZE(gau8OledTxBuffer));
 }
 
-
-static bool _oled_inner_cycle(uint64_t u64tckNow) {
+static void _oled_inner_cycle(uint64_t u64tckNow, uint32_t u32NextLabel) {
   const uint8_t au8ColFillData[] = {0x40, 0xFF, 0, 0xAA, 0};
-  static uint32_t u32LastLabel;
-  static bool bFirstRun = true;
-  static uint8_t u8FilledColumns = 0;
-  static uint8_t u8CmdWriteCycle = 0;
-  static EOledState eState = OLED_INIT;
-  bool bRet = false;
-  uint32_t u32NextLabel;
   static uint8_t au8Cursor8x8Data[8 + 1];
-  static uint32_t u32TotalDataWrites = 0;
+  static SOledStateVariables sVar = {
+    .bFirstRun = true,
+    .eState = OLED_INIT,
+    .u32LastLabel = 0,
+    .u8CmdWriteCycle = 0,
+    .u8FilledColumns = 0,
+    .u32TotalDataWrites = 0
+  };
 
-  if (lockmgr_acquire_lock(_i2c_to_lock(OLED_I2C_CH), &u32NextLabel)) {
-    if (!bFirstRun) {
-      AsyncResultEntry *psEntry = lockmgr_get_entry(u32LastLabel);
-      bool bErr = (0 < (psEntry->u32IntSt & I2C_INT_MASK_ERR));
-      if (!bErr) {
-        // do state change
-        if ((eState == OLED_FILL_COLS && u8FilledColumns < COLS_TO_FILL)
-                || (eState == OLED_CMD_WRITE && u8CmdWriteCycle < WAITCYCLES)) {
-          // stay in current state
-        } else if (eState == OLED_DATA_WRITE) {
-          --eState;
-        } else {
-          ++eState;
-        }
-      } else { // error occurred
-        // ?
+  if (!sVar.bFirstRun) {
+    AsyncResultEntry *psEntry = lockmgr_get_entry(sVar.u32LastLabel);
+    bool bErr = (0 < (psEntry->u32IntSt & I2C_INT_MASK_ERR));
+    if (!bErr) {
+      // do state change
+      if ((sVar.eState == OLED_FILL_COLS && sVar.u8FilledColumns < COLS_TO_FILL)
+              || (sVar.eState == OLED_CMD_WRITE && sVar.u8CmdWriteCycle < WAITCYCLES)) {
+        // stay in current state
+      } else if (sVar.eState == OLED_DATA_WRITE) {
+        --sVar.eState;
+      } else {
+        ++sVar.eState;
       }
-      lockmgr_release_entry(u32LastLabel);
+    } else { // error occurred
+      // ?
     }
-    bFirstRun = false;
-    u32LastLabel = u32NextLabel;
+    lockmgr_release_entry(sVar.u32LastLabel);
+  }
+  sVar.bFirstRun = false;
+  sVar.u32LastLabel = u32NextLabel;
 
-    switch (eState) {
-      case OLED_INIT:
-      {
-        uint8_t au8Dat[31]; // 31 bytes are the maximum a simple i2c write can handle natively
-        uint8_t u8DatLen = ssd1306_get_startseq(au8Dat);
-        i2c_write(OLED_I2C_CH, OLED_I2C_SLAVEADDR, u8DatLen, (const uint8_t*) au8Dat);
+  switch (sVar.eState) {
+    case OLED_INIT:
+    {
+      uint8_t au8Dat[31]; // 31 bytes are the maximum a simple i2c write can handle natively
+      uint8_t u8DatLen = ssd1306_get_startseq(au8Dat);
+      i2c_write(OLED_I2C_CH, OLED_I2C_SLAVEADDR, u8DatLen, (const uint8_t*) au8Dat);
+    }
+      break;
+    case OLED_FILL_COLS:
+    {
+      // single column data fits into a simple i2c write
+      i2c_write(OLED_I2C_CH, OLED_I2C_SLAVEADDR, ARRAY_SIZE(au8ColFillData), au8ColFillData);
+      ++sVar.u8FilledColumns;
+    }
+      break;
+    case OLED_FILL_FULL:
+    {
+      // full display fill (here: only 4 pages) requires 1K bytes (here 512 bytes)
+      // i2c simple write cannot handle it.
+      gsOledTxState.pu8Dat = gau8DataSeq2;
+      gsOledTxState.u32DatLen = ARRAY_SIZE(gau8DataSeq2);
+      gsOledTxState.u32Cur = 31;
+      gsOledTxState.u8LastEnd = 0;
+      i2c_write(OLED_I2C_CH, OLED_I2C_SLAVEADDR, ARRAY_SIZE(gau8DataSeq2), (const uint8_t*) gau8DataSeq2);
+    }
+      break;
+    case OLED_CMD_WRITE:
+      if (sVar.u8CmdWriteCycle == WAITCYCLES) {
+        sVar.u8CmdWriteCycle = 0;
       }
-        break;
-      case OLED_FILL_COLS:
-      {
-        // single column data fits into a simple i2c write
-        i2c_write(OLED_I2C_CH, OLED_I2C_SLAVEADDR, ARRAY_SIZE(au8ColFillData), au8ColFillData);
-        ++u8FilledColumns;
-      }
-        break;
-      case OLED_FILL_FULL:
-      {
-        // full display fill (here: only 4 pages) requires 1K bytes (here 512 bytes)
-        // i2c simple write cannot handle it.
-        gsOledTxState.pu8Dat = gau8DataSeq2;
-        gsOledTxState.u32DatLen = ARRAY_SIZE(gau8DataSeq2);
-        gsOledTxState.u32Cur = 31;
-        gsOledTxState.u8LastEnd = 0;
-        i2c_write(OLED_I2C_CH, OLED_I2C_SLAVEADDR, ARRAY_SIZE(gau8DataSeq2), (const uint8_t*) gau8DataSeq2);
-      }
-        break;
-      case OLED_CMD_WRITE:
-        if (u8CmdWriteCycle == WAITCYCLES) {
-          u8CmdWriteCycle = 0;
-        }
-        if (u8CmdWriteCycle == 0) {
-          if ((u32TotalDataWrites & 1) == 0) {
-            // set GDRAM update window
-            gu8OledTxBufferLen += ssd1306_set_hv_page_range(&gau8OledTxBuffer[gu8OledTxBufferLen], gu8Cursor8x8PosY, gu8Cursor8x8PosY);
-            gu8OledTxBufferLen += ssd1306_set_hv_column_range(&gau8OledTxBuffer[gu8OledTxBufferLen], 8 * gu8Cursor8x8PosX, 8 * gu8Cursor8x8PosX + 7);
-            // set data (to be written in next state)
-            uint8_t u8CharIdx = (gu8Cursor8x8PosX + OLED_CHR_COLS * gu8Cursor8x8PosY) % 128; // here 128 is the length of the ASCII code table (by definition)
-            ascii8x8_get_tld(au8Cursor8x8Data + 1, u8CharIdx);
+      if (sVar.u8CmdWriteCycle == 0) {
+        if ((sVar.u32TotalDataWrites & 1) == 0) {
+          // set GDRAM update window
+          gu8OledTxBufferLen += ssd1306_set_hv_page_range(&gau8OledTxBuffer[gu8OledTxBufferLen], gu8Cursor8x8PosY, gu8Cursor8x8PosY);
+          gu8OledTxBufferLen += ssd1306_set_hv_column_range(&gau8OledTxBuffer[gu8OledTxBufferLen], 8 * gu8Cursor8x8PosX, 8 * gu8Cursor8x8PosX + 7);
+          // set data (to be written in next state)
+          uint8_t u8CharIdx = (gu8Cursor8x8PosX + OLED_CHR_COLS * gu8Cursor8x8PosY) % 128; // here 128 is the length of the ASCII code table (by definition)
+          ascii8x8_get_tld(au8Cursor8x8Data + 1, u8CharIdx);
 
-            // advance cursor
-            ++gu8Cursor8x8PosX;
-            if (gu8Cursor8x8PosX == OLED_CHR_COLS) {
-              gu8Cursor8x8PosX = 0;
-              ++gu8Cursor8x8PosY;
-              if (gu8Cursor8x8PosY == OLED_CHR_ROWS) {
-                gu8Cursor8x8PosY = 0;
-              }
+          // advance cursor
+          ++gu8Cursor8x8PosX;
+          if (gu8Cursor8x8PosX == OLED_CHR_COLS) {
+            gu8Cursor8x8PosX = 0;
+            ++gu8Cursor8x8PosY;
+            if (gu8Cursor8x8PosY == OLED_CHR_ROWS) {
+              gu8Cursor8x8PosY = 0;
             }
           }
         }
-        if (1 < gu8OledTxBufferLen) {
-          i2c_write(OLED_I2C_CH, OLED_I2C_SLAVEADDR, gu8OledTxBufferLen, gau8OledTxBuffer);
-          gu8OledTxBufferLen = 1;
-        }
-        ++u8CmdWriteCycle;
-        break;
-      case OLED_DATA_WRITE:
-        for (int i = 0; i < ARRAY_SIZE(au8Cursor8x8Data); ++i) {
-          au8Cursor8x8Data[i] = ~au8Cursor8x8Data[i];
-        }
-        ssd1306_ctrl(au8Cursor8x8Data, false, true);
-        i2c_write(OLED_I2C_CH, OLED_I2C_SLAVEADDR, ARRAY_SIZE(au8Cursor8x8Data), au8Cursor8x8Data);
-        ++u32TotalDataWrites;
-        break;
-    }
-    bRet = true;
+      }
+      if (1 < gu8OledTxBufferLen) {
+        i2c_write(OLED_I2C_CH, OLED_I2C_SLAVEADDR, gu8OledTxBufferLen, gau8OledTxBuffer);
+        gu8OledTxBufferLen = 1;
+      }
+      ++sVar.u8CmdWriteCycle;
+      break;
+    case OLED_DATA_WRITE:
+      for (int i = 0; i < ARRAY_SIZE(au8Cursor8x8Data); ++i) {
+        au8Cursor8x8Data[i] = ~au8Cursor8x8Data[i];
+      }
+      ssd1306_ctrl(au8Cursor8x8Data, false, true);
+      i2c_write(OLED_I2C_CH, OLED_I2C_SLAVEADDR, ARRAY_SIZE(au8Cursor8x8Data), au8Cursor8x8Data);
+      ++sVar.u32TotalDataWrites;
+      break;
   }
-  return bRet;
 }
 
 static void _oled_cycle(uint64_t u64tckNow) {
   static uint64_t u64tckNext = MS2TICKS(OLED_INIT_DELAY_MS);
+  uint32_t u32NextLabel;
 
   if (u64tckNext <= u64tckNow) {
-    if (_oled_inner_cycle(u64tckNow)) {
+    if (lockmgr_acquire_lock(_i2c_to_lock(OLED_I2C_CH), &u32NextLabel)) {
+      _oled_inner_cycle(u64tckNow, u32NextLabel);
       u64tckNext += MS2TICKS(OLED_PERIOD_MS);
     }
   }

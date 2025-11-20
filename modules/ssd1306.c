@@ -16,13 +16,22 @@
 #define CMD_SETADDRMODE   0x20
 #define CMD_SETCOLRANGE   0x21
 #define CMD_SETPAGERANGE  0x22
+#define CMD_SETPAGE       0xB0
 #define CMD_SETSTARTLINE  0x40  // 0x40 .. 0x7F
 #define CMD_SETSEGREMAP   0xA0  // 0xA0 .. 0xA1
 #define CMD_SETSCANDIR    0xC0  // 0xC0 | 0xC8
+#define CMD_ENTIREDISPON  0xA4
+#define CMD_SETDISPON     0xAE
+#define CMD_INVERSEDISP   0xA6
 #define CMD_SETCOMPINCFG  0xDA
 #define CMD_SETCONTRAST   0x81
 #define CMD_SETCLKFREQ    0xD5
 #define CMD_SETPHASELEN   0xD9
+
+#define MASK_COM 0x3F
+#define MASK_SEG 0x7F
+#define MASK_PAGE 0x07
+
 
 // ============== Local types ==============
 // ============== Local data ==============
@@ -41,7 +50,7 @@
  * @return Number of written bytes.
  */
 uint8_t ssd1306_ctrl(uint8_t *pu8Dest, bool bContinuate, bool bData) {
-  pu8Dest[0] = bContinuate ? 0x80 : 0 | bData ? 0x40 : 0;
+  pu8Dest[0] = (bContinuate ? 0x80 : 0) | (bData ? 0x40 : 0);
   return 1;
 }
 
@@ -53,8 +62,9 @@ uint8_t ssd1306_ctrl(uint8_t *pu8Dest, bool bContinuate, bool bData) {
  */
 uint8_t ssd1306_set_mux_ratio(uint8_t *pu8Dest, uint8_t u8Ratio) {
   pu8Dest[0] = CMD_SETMUXRATIO;
-  pu8Dest[1] = u8Ratio & 0x3F;
-  if (pu8Dest[1] < 0x0F) pu8Dest[1] = 0x0F;
+  if (SSD1306_MUX_MAX < u8Ratio) u8Ratio = SSD1306_MUX_MAX;
+  if (u8Ratio < SSD1306_MUX_MIN) u8Ratio = SSD1306_MUX_MIN;
+  pu8Dest[1] = u8Ratio;
   return 2;
 }
 
@@ -66,7 +76,7 @@ uint8_t ssd1306_set_mux_ratio(uint8_t *pu8Dest, uint8_t u8Ratio) {
  */
 uint8_t ssd1306_set_display_offset(uint8_t *pu8Dest, uint8_t u8Offset) {
   pu8Dest[0] = CMD_SETDISPOFFS;
-  pu8Dest[1] = u8Offset & 0x3F;
+  pu8Dest[1] = u8Offset & MASK_COM;
   return 2;
 }
 
@@ -78,7 +88,7 @@ uint8_t ssd1306_set_display_offset(uint8_t *pu8Dest, uint8_t u8Offset) {
  * @return Number of written bytes.
  */
 uint8_t ssd1306_set_display_startline(uint8_t *pu8Dest, uint8_t u8StartLine) {
-  pu8Dest[0] = CMD_SETSTARTLINE | (u8StartLine & 0x3F);
+  pu8Dest[0] = CMD_SETSTARTLINE | (u8StartLine & MASK_COM);
   return 1;
 }
 
@@ -103,8 +113,8 @@ uint8_t ssd1306_set_memory_addressing_mode(uint8_t *pu8Dest, EAddressingMode eMo
  */
 uint8_t ssd1306_set_hv_column_range(uint8_t *pu8Dest, uint8_t u8First, uint8_t u8Last) {
   pu8Dest[0] = CMD_SETCOLRANGE;
-  pu8Dest[1] = u8First & 0x7F;
-  pu8Dest[2] = u8Last & 0x7F;
+  pu8Dest[1] = u8First & MASK_SEG;
+  pu8Dest[2] = u8Last & MASK_SEG;
   return 3;
 }
 
@@ -118,8 +128,8 @@ uint8_t ssd1306_set_hv_column_range(uint8_t *pu8Dest, uint8_t u8First, uint8_t u
  */
 uint8_t ssd1306_set_hv_page_range(uint8_t *pu8Dest, uint8_t u8First, uint8_t u8Last) {
   pu8Dest[0] = CMD_SETPAGERANGE;
-  pu8Dest[1] = u8First & 0x07;
-  pu8Dest[2] = u8Last & 0x07;
+  pu8Dest[1] = u8First & MASK_PAGE;
+  pu8Dest[2] = u8Last & MASK_PAGE;
   return 3;
 }
 
@@ -130,7 +140,7 @@ uint8_t ssd1306_set_hv_page_range(uint8_t *pu8Dest, uint8_t u8First, uint8_t u8L
  * @return Number of written bytes.
  */
 uint8_t ssd1306_set_page_page(uint8_t *pu8Dest, uint8_t u8Page) {
-  pu8Dest[0] = 0xB0 | (u8Page & 0x07);
+  pu8Dest[0] = CMD_SETPAGE | (u8Page & MASK_PAGE);
   return 1;
 }
 
@@ -201,7 +211,7 @@ uint8_t ssd1306_set_contrast_control(uint8_t *pu8Dest, uint8_t u8Value) {
  * @return Number of written bytes.
  */
 uint8_t ssd1306_entire_display_on(uint8_t *pu8Dest, bool bOn) {
-  pu8Dest[0] = 0xA4 | (bOn ? 1 : 0);
+  pu8Dest[0] = CMD_ENTIREDISPON | (bOn ? 1 : 0);
   return 1;
 }
 
@@ -212,7 +222,7 @@ uint8_t ssd1306_entire_display_on(uint8_t *pu8Dest, bool bOn) {
  * @return Number of written bytes.
  */
 uint8_t ssd1306_set_display_on(uint8_t *pu8Dest, bool bOn) {
-  pu8Dest[0] = 0xAE | (bOn ? 1 : 0);
+  pu8Dest[0] = CMD_SETDISPON | (bOn ? 1 : 0);
   return 1;
 }
 
@@ -223,7 +233,7 @@ uint8_t ssd1306_set_display_on(uint8_t *pu8Dest, bool bOn) {
  * @return Number of written bytes.
  */
 uint8_t ssd1306_inverse_display(uint8_t *pu8Dest, bool bInverse) {
-  pu8Dest[0] = 0xA6 | (bInverse ? 1 : 0);
+  pu8Dest[0] = CMD_INVERSEDISP | (bInverse ? 1 : 0);
   return 1;
 }
 
@@ -273,7 +283,7 @@ uint8_t ssd1306_charge_pump_setting(uint8_t *pu8Dest, bool bEnable) {
 uint8_t ssd1306_get_startseq(uint8_t *pu8Dest) {
   uint8_t u8Ret = 0;
   u8Ret += ssd1306_ctrl(pu8Dest, false, false);
-  u8Ret += ssd1306_set_mux_ratio(&pu8Dest[u8Ret], 0x3F);
+  u8Ret += ssd1306_set_mux_ratio(&pu8Dest[u8Ret], SSD1306_MUX_MAX);
   u8Ret += ssd1306_set_display_offset(&pu8Dest[u8Ret], 0x0);
   u8Ret += ssd1306_set_display_startline(&pu8Dest[u8Ret], 0);
   u8Ret += ssd1306_set_memory_addressing_mode(&pu8Dest[u8Ret], SSD1306_ADDR_VERT);

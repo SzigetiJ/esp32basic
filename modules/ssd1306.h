@@ -13,6 +13,8 @@ extern "C" {
 #endif
 
   // ============== Defines ==============
+#define SSD1306_MUX_MIN 0x0F
+#define SSD1306_MUX_MAX 0x3F
 
   // ============== Types ==============
 
