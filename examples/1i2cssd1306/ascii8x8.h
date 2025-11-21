@@ -14,9 +14,28 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 
+  // ============== Defines ==============
+
+  // ============== Types ==============
+
+  typedef enum {
+    ASCII_CHRSET_8x8 = 0,
+    ASCII_CHRSET_8x6,
+    ASCII_CHRSET_6x4
+  } EAsciiCharset;
+
+  typedef struct {
+    uint8_t u8Height;
+    uint8_t u8Width;
+    bool bBold;
+  } SAsciiAttributes;
+
   // ============== Interface functions ==============
-  bool ascii8x8_code_supported(uint8_t u8Code);
-  void ascii8x8_get_tld(uint8_t *pu8Dest, uint8_t u8Code);
+  uint32_t ascii_supported_charsets();
+  SAsciiAttributes ascii_charset_attr(EAsciiCharset eCharset);
+
+  bool ascii_code_supported(EAsciiCharset eCharset, uint8_t u8Code);
+  uint8_t ascii_get_tld(uint8_t *pu8Dest, EAsciiCharset eCharset, uint8_t u8Code);
   void ascii8x8_get_blr(uint8_t *pu8Dest, uint8_t u8Code);
 
 #ifdef __cplusplus

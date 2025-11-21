@@ -42,11 +42,11 @@
 #define OLED_I2C_SLAVEADDR 0x3c
 #define I2C_INT_CH 23U
 
-#define WAITCYCLES 5U       ///< wait (for command) cycles between data writes
-#define COLS_TO_FILL 128U
-#define PAGES_TO_FILL 4U
-#define OLED_CHR_ROWS 8U    ///< number of rows in character mode
-#define OLED_CHR_COLS 16U   ///< number of columns in character mode
+#define WAITCYCLES      5U      ///< wait (for command) cycles between data writes
+#define COLS_TO_FILL  128U
+#define PAGES_TO_FILL   4U
+#define OLED_CHR_PAGES  8U      ///< number of pages in character mode
+#define OLED_CHR_COLS 128U      ///< number of columns in character mode
 
 // ============= Local types ===============
 
@@ -102,8 +102,9 @@ static FeedState gsOledTxState = {
   .u8LastEnd = 0
 };
 
-static uint8_t gu8Cursor8x8PosX = 0;
-static uint8_t gu8Cursor8x8PosY = 0;
+static uint8_t gu8CursorChrPosX = 0;
+static uint8_t gu8CursorChrPosY = 0;
+static EAsciiCharset geCharset = ASCII_CHRSET_8x8;
 static uint32_t gu32FeedCnt = 0;
 static uint32_t gu32ComplFeed = 0;
 static uint32_t gu32ErrorCnt = 0;
@@ -181,9 +182,13 @@ static void _uartctrl_cycle(uint64_t u64tckNow) {
           if (u8MuxRatio < 0x0F) u8MuxRatio = 0x3F;
           gu8OledTxBufferLen += ssd1306_set_mux_ratio(&gau8OledTxBuffer[gu8OledTxBufferLen], u8MuxRatio);
           break;
-        case 'c':
-          uart_printf(&gsUART0, "cmd regs: %08X %08X %08X %08X\r\n",
-                  i2c_regs(OLED_I2C_CH)->COMD[0], i2c_regs(OLED_I2C_CH)->COMD[1], i2c_regs(OLED_I2C_CH)->COMD[2], i2c_regs(OLED_I2C_CH)->COMD[3]);
+        case 'c': // select next charset
+          ++geCharset;
+          if (0 == ((1 << geCharset) & ascii_supported_charsets())) {
+            geCharset = ASCII_CHRSET_8x8;
+          }
+          gu8CursorChrPosX = 0;
+          gu8CursorChrPosY = 0;
           break;
         default:
           uart_printf(&gsUART0, "command not found\r\n");
@@ -211,7 +216,8 @@ static void _oled_init() {
 
 static void _oled_inner_cycle(uint64_t u64tckNow, uint32_t u32NextLabel) {
   const uint8_t au8ColFillData[] = {0x40, 0xFF, 0, 0xAA, 0};
-  static uint8_t au8Cursor8x8Data[8 + 1];
+  static uint8_t au8CursorChrData[8 + 1];
+  static uint8_t u8CursorChrDataLen = 1;
   static SOledStateVariables sVar = {
     .bFirstRun = true,
     .eState = OLED_INIT,
@@ -220,6 +226,7 @@ static void _oled_inner_cycle(uint64_t u64tckNow, uint32_t u32NextLabel) {
     .u8FilledColumns = 0,
     .u32TotalDataWrites = 0
   };
+  SAsciiAttributes sCharsetAttr = ascii_charset_attr(geCharset);
 
   if (!sVar.bFirstRun) {
     AsyncResultEntry *psEntry = lockmgr_get_entry(sVar.u32LastLabel);
@@ -275,19 +282,21 @@ static void _oled_inner_cycle(uint64_t u64tckNow, uint32_t u32NextLabel) {
       if (sVar.u8CmdWriteCycle == 0) {
         if ((sVar.u32TotalDataWrites & 1) == 0) {
           // set GDRAM update window
-          gu8OledTxBufferLen += ssd1306_set_hv_page_range(&gau8OledTxBuffer[gu8OledTxBufferLen], gu8Cursor8x8PosY, gu8Cursor8x8PosY);
-          gu8OledTxBufferLen += ssd1306_set_hv_column_range(&gau8OledTxBuffer[gu8OledTxBufferLen], 8 * gu8Cursor8x8PosX, 8 * gu8Cursor8x8PosX + 7);
+          uint8_t u8PxXFirst = sCharsetAttr.u8Width * gu8CursorChrPosX;
+          uint8_t u8PxXLast = u8PxXFirst + (sCharsetAttr.u8Width - 1);
+          uint8_t u8ChrPerLine = (OLED_CHR_COLS / sCharsetAttr.u8Width);
+          gu8OledTxBufferLen += ssd1306_set_hv_page_range(&gau8OledTxBuffer[gu8OledTxBufferLen], gu8CursorChrPosY, gu8CursorChrPosY);
+          gu8OledTxBufferLen += ssd1306_set_hv_column_range(&gau8OledTxBuffer[gu8OledTxBufferLen], u8PxXFirst, u8PxXLast);
           // set data (to be written in next state)
-          uint8_t u8CharIdx = (gu8Cursor8x8PosX + OLED_CHR_COLS * gu8Cursor8x8PosY) % 128; // here 128 is the length of the ASCII code table (by definition)
-          ascii8x8_get_tld(au8Cursor8x8Data + 1, u8CharIdx);
-
+          uint8_t u8CharIdx = (gu8CursorChrPosX + u8ChrPerLine * gu8CursorChrPosY) % 128; // here 128 is the length of the ASCII code table (by definition)
+          u8CursorChrDataLen = 1 + ascii_get_tld(au8CursorChrData + 1, geCharset, u8CharIdx);
           // advance cursor
-          ++gu8Cursor8x8PosX;
-          if (gu8Cursor8x8PosX == OLED_CHR_COLS) {
-            gu8Cursor8x8PosX = 0;
-            ++gu8Cursor8x8PosY;
-            if (gu8Cursor8x8PosY == OLED_CHR_ROWS) {
-              gu8Cursor8x8PosY = 0;
+          ++gu8CursorChrPosX;
+          if (OLED_CHR_COLS <= u8PxXLast + sCharsetAttr.u8Width) {
+            gu8CursorChrPosX = 0;
+            ++gu8CursorChrPosY;
+            if (gu8CursorChrPosY == OLED_CHR_PAGES) {
+              gu8CursorChrPosY = 0;
             }
           }
         }
@@ -299,11 +308,11 @@ static void _oled_inner_cycle(uint64_t u64tckNow, uint32_t u32NextLabel) {
       ++sVar.u8CmdWriteCycle;
       break;
     case OLED_DATA_WRITE:
-      for (int i = 0; i < ARRAY_SIZE(au8Cursor8x8Data); ++i) {
-        au8Cursor8x8Data[i] = ~au8Cursor8x8Data[i];
+      for (int i = 1; i < u8CursorChrDataLen; ++i) {
+        au8CursorChrData[i] = ~au8CursorChrData[i];
       }
-      ssd1306_ctrl(au8Cursor8x8Data, false, true);
-      i2c_write(OLED_I2C_CH, OLED_I2C_SLAVEADDR, ARRAY_SIZE(au8Cursor8x8Data), au8Cursor8x8Data);
+      ssd1306_ctrl(au8CursorChrData, false, true);
+      i2c_write(OLED_I2C_CH, OLED_I2C_SLAVEADDR, u8CursorChrDataLen, au8CursorChrData);
       ++sVar.u32TotalDataWrites;
       break;
   }
