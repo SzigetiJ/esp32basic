@@ -28,6 +28,9 @@
 // =================== Hard constants =================
 
 // #1: Timings -- 50ms: 20Hz update freq.
+#define UART_FREQ_HZ    115200U
+#define OLED_I2C_FREQ_HZ 400000U
+
 #define OLED_INIT_DELAY_MS 100U  ///< seems like OLED requires some time to startup
 #define OLED_PERIOD_MS      50U   ///< SSD1306 update period
 #define UARTCTRL_PERIOD_MS 100U
@@ -35,8 +38,6 @@
 // #2: Channels / wires / addresses
 #define I2C0_SCL_GPIO 22U
 #define I2C0_SDA_GPIO 23U
-
-#define OLED_I2C_FREQ_HZ 400000U
 
 #define OLED_I2C_CH I2C0
 #define OLED_I2C_SLAVEADDR 0x3c
@@ -78,12 +79,14 @@ typedef struct {
 static void _i2c_release_cycle(uint64_t u64tckNow);
 static ELockmgrResource _i2c_to_lock(EI2CBus eBus);
 static void _uartctrl_cycle(uint64_t u64tckNow);
-static void _oled_cycle(uint64_t u64tckNow);
-void _i2c_start(void *pvParam);
-void _i2c_compl(void *pvParam);
-void _i2c_feed(void *pvParam);
 static void _oled_init();
 static void _oled_inner_cycle(uint64_t u64tckNow, uint32_t u32NextLabel);
+static void _oled_cycle(uint64_t u64tckNow);
+
+void _i2c_feed(void *pvParam);
+void _i2c_start(void *pvParam);
+void _i2c_compl(void *pvParam);
+void _i2c_error(void *pvParam);
 
 // =================== Global constants ================
 const bool gbStartAppCpu = START_APP_CPU;
@@ -146,6 +149,8 @@ static void _uartctrl_cycle(uint64_t u64tckNow) {
   static uint8_t u8Brightness = 0x7F;
   static uint8_t u8MuxRatio = 0x3F;
   static bool bRotated = false;
+  static bool bInverse = false;
+  static bool bEntire = false;
 
   if (u64tckNext <= u64tckNow) {
     while (0 < (gsUART0.STATUS & 0xff)) {
@@ -189,6 +194,14 @@ static void _uartctrl_cycle(uint64_t u64tckNow) {
           }
           gu8CursorChrPosX = 0;
           gu8CursorChrPosY = 0;
+          break;
+        case 'x':
+          bInverse = !bInverse;
+          gu8OledTxBufferLen += ssd1306_inverse_display(&gau8OledTxBuffer[gu8OledTxBufferLen], bInverse);
+          break;
+        case 'e':
+          bEntire = !bEntire;
+          gu8OledTxBufferLen += ssd1306_entire_display_on(&gau8OledTxBuffer[gu8OledTxBufferLen], bEntire);
           break;
         default:
           uart_printf(&gsUART0, "command not found\r\n");
@@ -330,6 +343,8 @@ static void _oled_cycle(uint64_t u64tckNow) {
   }
 }
 
+// ISRs
+
 IRAM_ATTR void _i2c_feed(void *pvParam) {
   FeedState *psParam = (FeedState*)pvParam;
   ++gu32FeedCnt;
@@ -364,7 +379,7 @@ IRAM_ATTR void _i2c_error(void *pvParam) {
 
 void prog_init_pro_pre() {
   // we do some logging, hence set UART0 speed
-  gsUART0.CLKDIV.u20ClkDiv = APB_FREQ_HZ / 115200;
+  gsUART0.CLKDIV.raw = UART_HZ2CLKDIV(UART_FREQ_HZ, APB_FREQ_HZ);
 
   lockmgr_init();
   i2c_init_controller(OLED_I2C_CH, I2C0_SCL_GPIO, I2C0_SDA_GPIO, HZ2APBTICKS(OLED_I2C_FREQ_HZ));

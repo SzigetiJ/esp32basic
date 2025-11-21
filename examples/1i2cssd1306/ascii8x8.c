@@ -310,7 +310,7 @@ static const uint8_t gaau8Ascii6x4[][4] = {
 };
 
 static const SAsciiAttributes gasAttributes[] = {
-  {8, 8, false},
+  {8, 8, true},
   {8, 6, false},
   {6, 4, false}
 };
