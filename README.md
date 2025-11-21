@@ -91,6 +91,7 @@ THis list is supposed to grow longer and longer.
   * DHT22 Temperature / Humidity sensor
   * TM1637 4x7 segment display
   * WS2812B LED strip
+  * SSD1306 OLED 64x128 pixel display
 * etc (_TODO_)
 
 ### Simplifications
