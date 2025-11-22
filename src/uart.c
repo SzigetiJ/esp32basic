@@ -13,15 +13,6 @@
 #define DPORT_UHCI1_BIT 12U
 
 // ============== Local types ==============
-typedef struct  {
-  uint32_t u12Size : 12;
-  uint32_t u12Length : 12;
-  uint32_t rsvd24: 6;
-  uint32_t bEof : 1;
-  uint32_t bOwner : 1;
-  void *pcData;
-  void *psNext;
-} UdmaDescriptor;
 
 // ============== Internal function declarations ==============
 static inline uint8_t _dport_peri_bit(EUdmaController eUdma);
@@ -40,7 +31,11 @@ static inline uint8_t _dport_peri_bit(EUdmaController eUdma) {
 
 
 // -------------- Interface functions --------------
-
+/**
+ * Enables UDMA controller in DPORT and binds UART channel to UDMA controller.
+ * @param eUart UART channel to bind to UDMA controller.
+ * @param eUdma UDMA controller to enable.
+ */
 void uart_init_udma(EUartController eUart, EUdmaController eUdma) {
   // enable controller
   dport_regs()->PERIP_CLK_EN |= 1 << _dport_peri_bit(eUdma);

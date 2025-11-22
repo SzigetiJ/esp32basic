@@ -52,6 +52,16 @@ extern "C" {
     UHCI_INT_DMAINFIFOFULLWM  // 16
   } EUhciIntType;        ///< Types of UHCI interrupt.
 
+  typedef struct  {
+    uint32_t u12Size : 12;
+    uint32_t u12Length : 12;
+    uint32_t rsvd24 : 6;
+    uint32_t bEof : 1;
+    uint32_t bOwner : 1;
+    void *pcData;
+    void *psNext;
+  } UdmaDescriptor;
+
 
   // Based on:
   // https://github.com/espressif/esp-idf/blob/6b3da6b188/components/soc/esp32/include/soc/uart_reg.h

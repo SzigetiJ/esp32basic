@@ -24,23 +24,16 @@
 
 // #2: Sizes
 #define TEST_PATTERN_LENGTH   1000U
-#define MSG_INC_STEP           100U
+#define MSG_LEN_INIT           100U
+#define MSG_LEN_INC            100U
 
 // #3: Channels
 #define UHCI_INT_CH             23U
 
 // ============= Local types ===============
-typedef struct  {
-  uint32_t u12Size : 12;
-  uint32_t u12Length : 12;
-  uint32_t rsvd24: 6;
-  uint32_t bEof : 1;
-  uint32_t bOwner : 1;
-  void *pcData;
-  void *psNext;
-} UdmaDescriptor;
 
 // ================ Local function declarations =================
+static bool _rotate_u32value(uint32_t *pu32Value, uint32_t u32Low, uint32_t u32High, uint32_t u32Step);
 static void _pattern_init();
 static void _uart_init();
 static void _uart_cycle(uint64_t u64tckNow);
@@ -57,12 +50,10 @@ static const EUartController geUart = UART_CTL0;
 static const EUdmaController geUdma = UDMA_CTL0;
 static const ECpu eIntCpu = CPU_PRO;
 
-static UART_Type *gpsUART = geUart == UART_CTL0? &gsUART0 : geUart == UART_CTL1 ? &gsUART1 : &gsUART2;
-static UHCI_Type *gpsUHCI = geUdma == UDMA_CTL0? &gsUHCI0 : &gsUHCI1;
+static UART_Type *gpsUART = geUart == UART_CTL0 ? &gsUART0 : geUart == UART_CTL1 ? &gsUART1 : &gsUART2;
+static UHCI_Type *gpsUHCI = geUdma == UDMA_CTL0 ? &gsUHCI0 : &gsUHCI1;
 
 // ==================== Local Data ================
-static uint8_t gu8Phase = 0;
-
 static uint64_t gu64TckUartTxStart;
 static uint64_t gu64TckUartTxStop;
 
@@ -76,6 +67,16 @@ static UdmaDescriptor gsUdmaDesc;
 
 // ============== Implementation ==============
 // -------------- Internal functions --------------
+
+static bool _rotate_u32value(uint32_t *pu32Value, uint32_t u32Begin, uint32_t u32End, uint32_t u32Step) {
+  *pu32Value += u32Step;
+  if (u32End <= *pu32Value) {
+    *pu32Value = u32Begin;
+    return true;
+  }
+  return false;
+}
+
 static void _pattern_init() {
   for (int i = 0; i < TEST_PATTERN_LENGTH; ++i) {
     gacTestPattern[i] = '0' + (i % 10);
@@ -94,15 +95,15 @@ static void _uart_init() {
   *prDportIntMap = UHCI_INT_CH;
   _xtos_set_interrupt_handler_arg(UHCI_INT_CH, _uhci_isr, 0);
   ets_isr_unmask(1 << UHCI_INT_CH);
-
 }
 
 static void _uart_cycle(uint64_t u64tckNow) {
   static uint64_t u64tckNext = 0;
-  static uint32_t u32MsgLen = MSG_INC_STEP;
+  static uint32_t u32Phase = 0;
+  static uint32_t u32MsgLen = MSG_LEN_INIT;
 
   if (u64tckNext <= u64tckNow) {
-    switch (gu8Phase) {
+    switch (u32Phase) {
       case 0:
         uart_printf(gpsUART, "Sending message of %u bytes\r\n", u32MsgLen);
         break;
@@ -117,17 +118,17 @@ static void _uart_cycle(uint64_t u64tckNow) {
         uart_printf(gpsUART, "\r\nUART TX duration: %u ns\r\n", (uint32_t)((gu64TckUartTxStop - gu64TckUartTxStart) / TICKS_PER_US));
         break;
       case 3:
-        gsUdmaDesc = (UdmaDescriptor) {
+        gsUdmaDesc = (UdmaDescriptor){
           .bEof = true,
-                  .bOwner = true,
-                  .pcData = gacTestPattern,
-                  .psNext = NULL,
-                  .u12Length = u32MsgLen,
-                  .u12Size = TEST_PATTERN_LENGTH
+          .bOwner = true,
+          .pcData = gacTestPattern,
+          .psNext = NULL,
+          .u12Length = u32MsgLen,
+          .u12Size = TEST_PATTERN_LENGTH
         };
         gpsUHCI->INT_CLR = -1;
         gu64TckUdmaTxStart = timg_ticks(gsTimer);
-        gpsUHCI->OUT_LINK = (((uint32_t)&gsUdmaDesc)&0xfffff) | (1 << 29);
+        gpsUHCI->OUT_LINK = (((uint32_t) & gsUdmaDesc)&0xfffff) | (1 << 29);
         gu64TckUdmaTxStop = timg_ticks(gsTimer);
         break;
       case 4:
@@ -137,14 +138,11 @@ static void _uart_cycle(uint64_t u64tckNow) {
                 (uint32_t)((gu64TckUdmaTxTotalEof - gu64TckUdmaTxStart) / TICKS_PER_US));
         break;
     }
-    ++gu8Phase;
-    if (gu8Phase == 5) {
-      gu8Phase = 0;
-      u32MsgLen+=MSG_INC_STEP;
-      if (TEST_PATTERN_LENGTH < u32MsgLen) {
-        u32MsgLen = MSG_INC_STEP;
-      }
+
+    if (_rotate_u32value(&u32Phase, 0, 5, 1)) {
+      _rotate_u32value(&u32MsgLen, MSG_LEN_INIT, TEST_PATTERN_LENGTH + 1, MSG_LEN_INC);
     }
+
     u64tckNext += MS2TICKS(CYCLE_PERIOD_MS);
   }
 }
