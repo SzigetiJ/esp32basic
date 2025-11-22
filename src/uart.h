@@ -11,6 +11,7 @@
 extern "C" {
 #endif
 
+#include <stdbool.h>
 #include "esp32types.h"
 
   // ============== Defines ==============
@@ -158,6 +159,9 @@ extern "C" {
     return ((psUart->STATUS >> 16) & 0xff) | (((psUart->MEM_CNT_STATUS >> 3) & 0x7) << 8);
   }
 
+  static inline void uart_set_memconf_xsize(UART_Type *psUart, bool bTx, uint8_t u8Size) {
+    psUart->MEM_CONF = (psUart->MEM_CONF & (bTx ? 0xfffff87f : 0xffffff87)) | ((u8Size & 0xf) << (bTx ? 7 : 3));
+  }
   // ============== Interface functions ==============
   void uart_init_udma(EUartController eUart, EUdmaController eUdma);
 

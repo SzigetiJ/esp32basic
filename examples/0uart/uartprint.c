@@ -61,10 +61,7 @@ static void _uart_cycle(uint64_t u64tckNow) {
             case 'b':
               uint8_t u8ArgValue = (acArg[0] - '0');
 
-              Reg rUartMemConf = gpsUART0->MEM_CONF;  // read
-              rUartMemConf &= ~(0xf << 7);            // erase
-              rUartMemConf |= u8ArgValue << 7;        // set
-              gpsUART0->MEM_CONF = rUartMemConf;      // write
+              uart_set_memconf_xsize(gpsUART0, true, u8ArgValue);
               uart_printf(gpsUART0, "UART TX buffer size set to %d\r\n", 128 * u8ArgValue);
               break;
           }
