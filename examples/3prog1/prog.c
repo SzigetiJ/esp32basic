@@ -28,6 +28,7 @@
 #include "typeaux.h"
 #include "bme280.h"
 #include "bh1750.h"
+#include "sht4x.h"
 #include "ssd1306.h"
 #include "utils/i2cutils.h"
 #include "utils/uartutils.h"
@@ -39,6 +40,7 @@
 #define OLED_PERIOD_MS 100U
 #define BH1750_PERIOD_MS 1333U
 #define BME280_PERIOD_MS 5200U
+#define SHT40_PERIOD_MS 4800U
 #define LOG_PERIOD_MS 4000U
 #define INC_PERIOD_MS 1900U
 #define I2CSCAN_PERIOD_MS 8600U
@@ -61,6 +63,9 @@
 
 #define BME280_I2C_CH I2C1
 #define BME280_I2C_SLAVEADDR 0x76
+
+#define SHT40_I2C_CH I2C1
+#define SHT40_I2C_SLAVEADDR 0x44
 
 // #3: Sizes
 #define UART0_TXSIZE 1U
@@ -117,6 +122,8 @@ static void _bh1750_cycle(uint64_t u64tckNow);
 static void _bme280_init(SBme280StateDesc *psState, SI2cIfaceCfg *psIface);
 static void _bme280_print_result(uint64_t u64tckNow, const SBme280TPH *psRes, uint32_t u32TFine);
 static void _bme280_cycle(uint64_t u64tckNow);
+static void _sht40_print_result(uint64_t u64tckNow, SSht40StateDesc *psState);
+static void _sht40_cycle(uint64_t u64tckNow);
 static void _log_cycle(uint64_t u64tckNow);
 static void _inc_cycle(uint64_t u64tckNow);
 static void _uartctrl_cycle(uint64_t u64tckNow);
@@ -205,12 +212,7 @@ static void _init_drivers() {
 
 static void _init_uart() {
   gpsUART0->CLKDIV.raw = UART_HZ2CLKDIV(UART_FREQ_HZ, APB_FREQ_HZ);
-
-  Reg rUartMemConf = gpsUART0->MEM_CONF;
-  rUartMemConf &= ~(0xf << 7);
-  rUartMemConf |= UART0_TXSIZE << 7;
-
-  gpsUART0->MEM_CONF = rUartMemConf;
+  uart_set_memconf_xsize(gpsUART0, true, UART0_TXSIZE);
 }
 
 // TODO: make it an ISR and attach to I2C INT
@@ -384,6 +386,71 @@ static void _bme280_cycle(uint64_t u64tckNow) {
   }
 }
 
+// Section SHT40
+
+static void _sht40_print_result(uint64_t u64tckNow, SSht40StateDesc *psState) {
+  _uart_print_header(gpsUART0, u64tckNow, "SHT40");
+  uart_printf(gpsUART0, " cmd: #%u, raw: %02X %02X %02X %02X %02X %02X,",
+          psState->eCommand,
+          psState->au8RxBuffer[0], psState->au8RxBuffer[1], psState->au8RxBuffer[2],
+          psState->au8RxBuffer[3], psState->au8RxBuffer[4], psState->au8RxBuffer[5]);
+  if (psState->eCommand != SHT4X_CMD_SERIAL) {
+    int32_t i32TempM = sht4x_get_temp(psState);
+    int32_t i32HumM = sht4x_get_hum(psState);
+    uart_printf(gpsUART0, " Temp: %d.%03d, Hum: %d.%03d\r\n", i32TempM / 1000, i32TempM % 1000, i32HumM / 1000, i32HumM % 1000);
+  } else {
+    uint32_t u32Serial = sht4x_get_serial(psState);
+    uart_printf(gpsUART0, " Serial number: %08X\r\n", u32Serial);
+  }
+  // check crc
+  if (!sht4x_check_crc(psState, true)) {
+    uart_printf(gpsUART0, " 1st CRC8 does not match (Temp)\r\n");
+  }
+  if (!sht4x_check_crc(psState, true)) {
+    uart_printf(gpsUART0, " 2nd CRC8 does not match (Hum)\r\n");
+  }
+}
+
+static void _sht40_cycle(uint64_t u64tckNow) {
+  static ESht4xCommand eCommand = SHT4X_CMD_MEAS_H;
+  static uint64_t u64tckNext = MS2TICKS(SHT40_PERIOD_MS);
+  static bool bFirstRun = true;
+  static SSht40StateDesc sState;
+
+  if (bFirstRun) {
+    sState = sht40_init_descriptor((SI2cIfaceCfg){SHT40_I2C_CH, SHT40_I2C_SLAVEADDR, _i2c_to_lock(SHT40_I2C_CH)});
+    bFirstRun = false;
+  }
+
+  uint32_t u32msWait = 0;
+
+  if (u64tckNext <= u64tckNow) {
+    if (sState.eState == SHT4X_STATE_READY || sState.eState == SHT4X_STATE_ERROR) {
+      if (sState.eState == SHT4X_STATE_ERROR) {
+        _uart_print_header(gpsUART0, u64tckNow, "SHT40");
+        uart_printf(gpsUART0, " ERROR!");
+      } else {
+        if (sState.eCommand != SHT4X_CMD_RESET) {
+          _sht40_print_result(u64tckNow, &sState);
+        }
+      }
+      u32msWait = SHT40_PERIOD_MS;
+      ++eCommand;
+      if (SHT4X_CMD_RESET < eCommand) { // here we skip SHT4X_CMD_HEAT* commands
+        eCommand = SHT4X_CMD_MEAS_H;
+      }
+      sState.eState = SHT4X_STATE_IDLE;
+    } else if (sState.eState == SHT4X_STATE_IDLE) {
+      sht40_set_command(&sState, eCommand);
+    }
+
+    if (sht40_needs_rxtx(&sState)) {
+      u32msWait = sht4x_rxtx_cycle(&sState);
+    }
+    u64tckNext += MS2TICKS(u32msWait);
+  }
+}
+
 // Section BH1750FVI
 
 static void _bh1750_init(SBh1750StateDesc *psState, SI2cIfaceCfg *psIface) {
@@ -408,7 +475,7 @@ static void _bh1750_print_result(uint64_t u64tckTimestamp, const SBh1750StateDes
   _uart_print_header(gpsUART0, u64tckTimestamp, "BH1750");
   uart_printf(gpsUART0, " mode: %s, result: %d.%03d lx (raw: %u), mtime: %u ms (raw: %u)\r\n",
           acBh1750MResName[eMRes],
-          u32mLx/1000, u32mLx%1000, u16Result,
+          u32mLx / 1000, u32mLx % 1000, u16Result,
           u32hmsMTime / 2, u8MTime);
 }
 
@@ -568,7 +635,7 @@ static void _uartctrl_cycle(uint64_t u64tckNow) {
         if (0 == u8WaitForArgs) { // all the required number of arguments arrived
           switch (cCommand) {
             case 'w': // put a byte into lockmgr RX buffer
-              uint8_t u8ArgValue= char_to_hex8(acArg[0]) | (char_to_hex8(acArg[1]) << 4);
+              uint8_t u8ArgValue = char_to_hex8(acArg[0]) | (char_to_hex8(acArg[1]) << 4);
               ELockmgrResource eRes = _i2c_to_lock(OLED_I2C_CH);
               bool bLocked = lockmgr_is_locked(eRes);
               if (bLocked) {
@@ -610,7 +677,7 @@ static void _uartctrl_cycle(uint64_t u64tckNow) {
             }
             uart_printf(gpsUART0, "\r\n");
           }
-          break;
+            break;
           case 'r':
           {
             _uart_print_header(gpsUART0, u64tckNow, "CTRL");
@@ -624,7 +691,7 @@ static void _uartctrl_cycle(uint64_t u64tckNow) {
               lockmgr_free_lock(eRes);
             }
           }
-          break;
+            break;
           case 'w':
             cCommand = 'w';
             u8WaitForArgs = 2;
@@ -675,5 +742,6 @@ void prog_cycle_pro(uint64_t u64tckNow) {
   _i2cscan_cycle(u64tckNow);
   _bh1750_cycle(u64tckNow);
   _bme280_cycle(u64tckNow);
+  _sht40_cycle(u64tckNow);
   _uartctrl_cycle(u64tckNow);
 }

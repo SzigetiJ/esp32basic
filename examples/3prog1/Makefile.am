@@ -23,10 +23,11 @@ endif
 
 AM_CFLAGS  = -std=c11 -flto
 AM_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/modules
-LDADD = $(top_builddir)/src/libesp32basic.a $(top_builddir)/modules/libesp32modules.a
+LDADD = $(top_builddir)/modules/libesp32modules.a $(top_builddir)/src/libesp32basic.a
 
 bin_PROGRAMS = \
  prog.elf
+
 
 if WITH_BINARIES
 CLEANFILES = \
