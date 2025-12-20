@@ -18,6 +18,7 @@ AC_CONFIG_SUBDIRS([examples])
 AC_CONFIG_SUBDIRS([examples/0blink])
 AC_CONFIG_SUBDIRS([examples/0hello])
 AC_CONFIG_SUBDIRS([examples/0ledctrl])
+AC_CONFIG_SUBDIRS([examples/0timgalarm])
 AC_CONFIG_SUBDIRS([examples/0uart])
 AC_CONFIG_SUBDIRS([examples/0udma])
 AC_CONFIG_SUBDIRS([examples/1i2cssd1306])
@@ -39,6 +40,7 @@ AC_CONFIG_FILES([
   examples/0button/Makefile
   examples/0hello/Makefile
   examples/0ledctrl/Makefile
+  examples/0timgalarm/Makefile
   examples/0uart/Makefile
   examples/0udma/Makefile
   examples/1i2cssd1306/Makefile
