@@ -95,6 +95,8 @@ static const uint32_t gu32IncConfig = (1 << 31) | (1 << 30) | (ALARM_DIVISOR << 
 static Result gsResult = {
   .u32SampleLen = 0
 };
+static ECpu geIsrCpu = CPU_PRO;
+static bool gbAppCpuStarted = false;
 static MeasurementState gsAlarmParam = {
   .sTimer =
   {TIMG_0, TIMER0},
@@ -162,7 +164,7 @@ static void _alarm_stop(MeasurementState *psParam, bool bReload) {
   psParam->psResult->u32tckPeriod = psParam->u32tckPeriod;
   psParam->psResult->u32SampleLen = psParam->u32SampleLen;
 
-  _alarm_isr_detach(CPU_PRO, psParam->sAlarm);
+  _alarm_isr_detach(geIsrCpu, psParam->sAlarm);
   psParam->bOngoing = false;
   uart_printf(&gsUART0, " Done.\r\n");
 }
@@ -171,7 +173,7 @@ static void _alarm_start(MeasurementState *psParam) {
   uart_printf(&gsUART0, "Starting measurement...");
   psParam->bOngoing = true;
 
-  _alarm_isr_attach(CPU_PRO, psParam->sAlarm, INT_CH, psParam->pfIsr);
+  _alarm_isr_attach(geIsrCpu, psParam->sAlarm, INT_CH, psParam->pfIsr);
   timg_tregs(psParam->sAlarm)->LOADLO = 0;
   timg_tregs(psParam->sAlarm)->LOADHI = 0;
   timg_tregs(psParam->sAlarm)->LOAD = 0;
@@ -261,11 +263,12 @@ static void _uart_cycle(uint64_t u64tckNow) {
           _alarm_start(&gsAlarmParam);
           break;
         case 'c': // current Reg values
-          uart_printf(&gsUART0, "Alarm: {curr: %u, alarm: %u,%u, conf: %08X}\r\n",
+          uart_printf(&gsUART0, "Alarm: {curr: %u, alarm: %u,%u, conf: %08X}, AppCpu: %u\r\n",
                   (uint32_t)timg_ticks(gsAlarmParam.sAlarm),
                   timg_tregs(gsAlarmParam.sAlarm)->ALARMHI,
                   timg_tregs(gsAlarmParam.sAlarm)->ALARMLO,
-                  timg_tregs(gsAlarmParam.sAlarm)->CONFIG
+                  timg_tregs(gsAlarmParam.sAlarm)->CONFIG,
+                  !!gbAppCpuStarted
                   );
           break;
 
@@ -337,6 +340,7 @@ void prog_init_pro_pre() {
 }
 
 void prog_init_app() {
+  gbAppCpuStarted = true;
 }
 
 void prog_init_pro_post() {
