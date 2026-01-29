@@ -92,12 +92,12 @@ const uint64_t gu64tckSchedulePeriod = (CLK_FREQ_HZ / SCHEDULE_FREQ_HZ);
 // ==================== Local Data ================
 static const uint32_t gu32ReloadConfig = (1 << 31) | (1 << 30) | (1 << 29) | (ALARM_DIVISOR << 13) | (1 << 11) | (1 << 10);
 static const uint32_t gu32IncConfig = (1 << 31) | (1 << 30) | (ALARM_DIVISOR << 13) | (1 << 11) | (1 << 10);
-static Result gsResult = {
+DRAM_ATTR static Result gsResult = {
   .u32SampleLen = 0
 };
 static ECpu geIsrCpu = CPU_PRO;
 static bool gbAppCpuStarted = false;
-static MeasurementState gsAlarmParam = {
+DRAM_ATTR static MeasurementState gsAlarmParam = {
   .sTimer =
   {TIMG_0, TIMER0},
   .sAlarm =
@@ -154,7 +154,7 @@ IRAM_ATTR static void _alarm_inc_isr(void *pvParam) {
 
 }
 
-static void _alarm_stop(MeasurementState *psParam, bool bReload) {
+IRAM_ATTR static void _alarm_stop(MeasurementState *psParam, bool bReload) {
   timg_tregs(psParam->sAlarm)->CONFIG = 0;
   gapsTIMG[psParam->sAlarm.eTimg]->INT_ENA_TIMERS &= ~(1 << psParam->sAlarm.eTimer);
   gapsTIMG[psParam->sAlarm.eTimg]->INT_CLR_TIMERS = 1 << psParam->sAlarm.eTimer;
@@ -270,6 +270,9 @@ static void _uart_cycle(uint64_t u64tckNow) {
                   timg_tregs(gsAlarmParam.sAlarm)->CONFIG,
                   !!gbAppCpuStarted
                   );
+          break;
+        case 'C':
+          uart_printf(&gsUART0, "ISR addr: %p %p, dat: %p %p\r\n", _alarm_reload_isr, _alarm_inc_isr, &gsResult, &gsAlarmParam);
           break;
 
           // Alarm value modification

@@ -22,23 +22,23 @@ extern "C" {
   // https://github.com/espressif/esp-idf/blob/6b3da6b188/components/soc/esp32/include/soc/dport_reg.h
 
   typedef struct {
-    Reg PRO_BOOT_REMAP_CTRL;
+    Reg PRO_BOOT_REMAP_CTRL;  // 00
     Reg APP_BOOT_REMAP_CTRL;
     Reg ACCESS_CHECK;
     Reg PRO_DPORT_APB_MASK0;
-    Reg PRO_DPORT_APB_MASK1;
+    Reg PRO_DPORT_APB_MASK1;  // 10
     Reg APP_DPORT_APB_MASK0;
     Reg APP_DPORT_APB_MASK1;
     Reg PERI_CLK_EN;
-    Reg PERI_RST_EN;
+    Reg PERI_RST_EN;          // 20
     Reg WIFI_BB_CFG;
     Reg WIFI_BB_CFG_2;
     Reg APPCPU_CTRL_A;
-    Reg APPCPU_CTRL_B;
+    Reg APPCPU_CTRL_B;        // 30
     Reg APPCPU_CTRL_C;
     Reg APPCPU_CTRL_D;
     Reg CPU_PER_CONF;
-    Reg PRO_CACHE_CTRL;
+    Reg PRO_CACHE_CTRL;       // 40
     Reg PRO_CACHE_CTRL1;
     Reg PRO_CACHE_LOCK_0_ADDR;
     Reg PRO_CACHE_LOCK_1_ADDR;
