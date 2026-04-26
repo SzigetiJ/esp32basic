@@ -24,6 +24,7 @@ AC_CONFIG_FILES([
   examples/0timgalarm/Makefile
   examples/0uart/Makefile
   examples/0udma/Makefile
+  examples/1bme280/Makefile
   examples/1i2cssd1306/Makefile
   examples/1rmtblink/Makefile
   examples/1rmtdht/Makefile

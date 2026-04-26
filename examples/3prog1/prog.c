@@ -336,10 +336,10 @@ static void _oled_cycle(uint64_t u64tckNow) {
 
 static void _bme280_init(SBme280StateDesc *psState, SI2cIfaceCfg *psIface) {
   *psState = bme280_init_state();
-  bme280_set_osrs_h(psState, BME280_OSRS_8);
-  bme280_set_osrs_t(psState, BME280_OSRS_8);
-  bme280_set_osrs_p(psState, BME280_OSRS_8);
-  bme280_set_mode_forced(psState);
+  bme280_set_osrs(psState, BME280_SEL_T, BME280_OSRS_8);
+  bme280_set_osrs(psState, BME280_SEL_P, BME280_OSRS_8);
+  bme280_set_osrs(psState, BME280_SEL_H, BME280_OSRS_8);
+  bme280_set_mode(psState, BME280_MODE_FORCED);
   *psIface = (SI2cIfaceCfg){
     .eBus = BME280_I2C_CH,
     .eLck = _i2c_to_lock(BME280_I2C_CH),
@@ -369,12 +369,12 @@ static void _bme280_cycle(uint64_t u64tckNow) {
   if (u64tckNext <= u64tckNow) {
     uint32_t u32hmsWaitHint = 0;
     bme280_async_rx_cycle(&sState, &u32hmsWaitHint);
-    if (bme280_is_data_updated(&sState)) {
+    if (bme280_is_data_ready(&sState)) {
       uint32_t u32TFine;
       SBme280TPH sResult = bme280_get_measurement(&sState, &u32TFine);
       _bme280_print_result(u64tckNow, &sResult, u32TFine);
-      bme280_ack_data_updated(&sState);
-      bme280_set_mode_forced(&sState);
+      bme280_req_data(&sState);
+      bme280_set_mode(&sState, BME280_MODE_FORCED);
       u64tckNext += MS2TICKS(BME280_PERIOD_MS);
     } else {
       if (u32hmsWaitHint == 0) {
