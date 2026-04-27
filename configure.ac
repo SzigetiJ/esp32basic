@@ -12,25 +12,6 @@ AC_ARG_WITH([binaries], AS_HELP_STRING([--without-binaries], [Do not generate .b
 AM_CONDITIONAL([WITH_BINARIES], [test x$with_binaries != xno])
 AM_COND_IF([WITH_BINARIES],[ AC_MSG_NOTICE([generate .bin images]) ])
 
-AC_CONFIG_SUBDIRS([src])
-AC_CONFIG_SUBDIRS([modules])
-AC_CONFIG_SUBDIRS([examples])
-AC_CONFIG_SUBDIRS([examples/0blink])
-AC_CONFIG_SUBDIRS([examples/0hello])
-AC_CONFIG_SUBDIRS([examples/0ledctrl])
-AC_CONFIG_SUBDIRS([examples/0timgalarm])
-AC_CONFIG_SUBDIRS([examples/0uart])
-AC_CONFIG_SUBDIRS([examples/0udma])
-AC_CONFIG_SUBDIRS([examples/1i2cssd1306])
-AC_CONFIG_SUBDIRS([examples/1rmtblink])
-AC_CONFIG_SUBDIRS([examples/1rmtdht])
-AC_CONFIG_SUBDIRS([examples/1rmtmorse])
-AC_CONFIG_SUBDIRS([examples/1rmtmusic])
-AC_CONFIG_SUBDIRS([examples/1rmttm1637])
-AC_CONFIG_SUBDIRS([examples/1rmtws2812])
-AC_CONFIG_SUBDIRS([examples/3prog1])
-AC_CONFIG_SUBDIRS([ld])
-
 AC_CONFIG_FILES([
   Makefile
   src/Makefile
