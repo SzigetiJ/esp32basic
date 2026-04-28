@@ -7,23 +7,33 @@
 #include "gentest_common.h"
 #include "typeaux.h"
 
-const char gacInput0[] = "abc def";
+#define TEXTANDLEN(X) X, sizeof(X)-1
+
+typedef struct {
+  const char *sText;
+  size_t zLen;
+} STextAndLen;
+
+const STextAndLen gasInput[]={
+  {TEXTANDLEN("abc def")},
+  {TEXTANDLEN("")}
+};
 
 uint8_t gau8Input1[] = {3, 5, 7, 9};
 uint8_t gau8Param1[] = {10, 0x80, 0x00};
 uint16_t gau16Expected1[] = {0x8003, 0x0007, 0x8005, 0x0005, 0x8007, 0x0003, 0x8009, 0x0001};
 
-bool test_bytegen_iter(const char *str) {
-  SByteGenState sGen = bytegen_init((uint8_t*) str, strlen(str));
-  return gentest_check_seq8_equal(gsByteGenFunc, (void*) &sGen, (uint8_t*) gacInput0, strlen(gacInput0));
+bool test_bytegen_iter(const STextAndLen sParam) {
+  SByteGenState sGen = bytegen_init((uint8_t*) sParam.sText, sParam.zLen);
+  return gentest_check_seq8_equal(gsByteGenFunc, (void*) &sGen, (uint8_t*) sParam.sText, sParam.zLen);
 }
 
-bool test_bytegen_reset(const char *str) {
+bool test_bytegen_reset(const STextAndLen sParam) {
   bool bRet = true;
-  for (unsigned int i = 0; i < strlen(str); ++i) {
-    SByteGenState sGen = bytegen_init((uint8_t*) str, strlen(str));
+  for (unsigned int i = 0; i < sParam.zLen; ++i) {
+    SByteGenState sGen = bytegen_init((uint8_t*) sParam.sText, sParam.zLen);
     gentest_reset_after_steps(&sGen, (FToByteNext) bytegen_next, (FToXReset) bytegen_reset, i);
-    bRet &= gentest_check_seq8_equal(gsByteGenFunc, (void*) &sGen, (uint8_t*) gacInput0, strlen(gacInput0));
+    bRet &= gentest_check_seq8_equal(gsByteGenFunc, (void*) &sGen, (uint8_t*) sParam.sText, sParam.zLen);
   }
   return bRet;
 }
@@ -51,8 +61,10 @@ int main(int argc, char **argv) {
     fprintf(stderr, "%s does not require command line arguments\n", argv[0]);
   }
 
-  assert(test_bytegen_iter(gacInput0));
-  assert(test_bytegen_reset(gacInput0));
+  assert(test_bytegen_iter(gasInput[0]));
+  assert(test_bytegen_reset(gasInput[0]));
+  assert(test_bytegen_iter(gasInput[1]));
+  assert(test_bytegen_reset(gasInput[1]));
   assert(test_pwngen_iter(gau8Input1, ARRAY_SIZE(gau8Input1), gau16Expected1, gau8Param1[0], gau8Param1[1], gau8Param1[2]));
   assert(test_pwmgen_reset(gau8Input1, ARRAY_SIZE(gau8Input1), gau16Expected1, gau8Param1[0], gau8Param1[1], gau8Param1[2]));
 }

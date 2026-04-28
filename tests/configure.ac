@@ -1,6 +1,6 @@
 AC_PREREQ([2.69])
 AC_INIT([esp32basic-test],[1.0.0])
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([subdir-objects])
 : ${CFLAGS="-g -Wall"} ${LDFLAGS=""}
 AC_PROG_CC
 AC_PROG_CC_STDC
