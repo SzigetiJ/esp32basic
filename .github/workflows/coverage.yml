@@ -1,0 +1,36 @@
+name: Coverage CI
+
+on:
+  push:
+    branches: [ develop ]
+  pull_request:
+    branches: [ develop ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: prepare
+      run: aclocal && autoconf && automake --add-missing
+      working-directory: tests
+    - name: generate gcov report
+      run: make -f coverage.mk gcov
+      working-directory: cov
+    - name: Install lcov
+      run: sudo apt install -y lcov
+    - name: generate lcov report
+      run: make -f coverage.mk esp32basic.info
+      working-directory: cov
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        directory: cov
+    - name: Upload coverage report to Codacy
+      uses: codacy/codacy-coverage-reporter-action@v1.3.0
+      with:
+        project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
+        coverage-reports: cov/esp32basic.info

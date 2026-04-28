@@ -8,40 +8,51 @@ GCOV=gcov
 ## paths
 HTML=html/index.html
 SRCDIR=../src
+MODDIR=../modules
+
 ## we get direct information about modification time
 ## note: I do not like wildcard, but could not find better solution
 SOURCES=$(wildcard $(SRCDIR)/*.c)
 HEADERS=$(wildcard $(SRCDIR)/*.h)
 OBJS=$(addprefix src/, $(notdir $(SOURCES:.c=.o)))
-GCDA=$(OBJS:.o=.gcda)
-GCNO=$(OBJS:.o=.gcno)
+
+SOURCES_UTILS=$(wildcard $(SRCDIR)/utils/*.c)
+HEADERS_UTILS=$(wildcard $(SRCDIR)/utils/*.h)
+OBJS_UTILS=$(addprefix src/utils/, $(notdir $(SOURCES_UTILS:.c=.o)))
+
+SOURCES_MODULES=$(wildcard $(MODDIR)/*.c)
+HEADERS_MODULES=$(wildcard $(MODDIR)/*.h)
+OBJS_MODULES=$(addprefix modules/, $(notdir $(SOURCES_MODULES:.c=.o)))
+
+GCDA=$(OBJS:.o=.gcda) $(OBJS_UTILS:.o=.gcda) $(OBJS_MODULES:.o=.gcda)
+GCNO=$(OBJS:.o=.gcno) $(OBJS_UTILS:.o=.gcno) $(OBJS_MODULES:.o=.gcda)
+
 GCDA_EXIST := $(foreach gcda,$(GCDA),$(wildcard $(gcda)))
-#$(info $$GCDA = $(GCDA))
-#$(info $$GCDA_EXIST = $(GCDA_EXIST))
+GCNO_EXIST := $(foreach gcno,$(GCNO),$(wildcard $(gcno)))
+
+$(info $$GCNO = $(GCNO))
+$(info $$GCNO_EXIST = $(GCNO_EXIST))
 
 all: $(HTML)
 
 gcov: testrun
 	$(MAKE) -f $(SELF_MKFILE) _gcov
 
-_gcov: $(GCNO:%.gcno=%.c.gcov)
+_gcov: $(GCNO_EXIST:%.gcno=%.c.gcov)
 
-%.c.gcov: %.gcno
-	cd src; $(GCOV) -wrabcfu -s ../.. -o $(notdir $<) $(notdir $(@:.gcov=))
-
-#src/%.gcda: testrun
-
+src/%.c.gcov: src/%.gcno
+	cd src && $(GCOV) -wrabcfu -s ../.. $(<:src/%.gcno=%.o)
+	[ -f $@ ] || mv src/$(notdir $@) $@
 
 $(HTML): $(PROJ).info
 	genhtml -s --branch-coverage $(PROJ).info --output-directory $(dir $(HTML))
 
 $(PROJ).info: $(PROJ).pre.info
-	lcov --rc lcov_branch_coverage=1 -r $< "/usr*" -o $@
+	lcov --ignore-errors unused --rc lcov_branch_coverage=1 -r $< "/usr*" -o $@
 
 $(PROJ).pre.info: $(PROJ).base.info $(PROJ).test.info
 	lcov --rc lcov_branch_coverage=1 -a $(PROJ).base.info -a $(PROJ).test.info -o $@
 
-#$(PROJ).base.info: src/lib$(PROJ).a
 $(PROJ).base.info: testrun
 	lcov -z -d src
 	lcov --rc lcov_branch_coverage=1 -c -i -d src -o $@
@@ -51,10 +62,6 @@ $(PROJ).test.info: $(PROJ).base.info
 	lcov --rc lcov_branch_coverage=1 -c -d src -o $@
 
 
-#source: Makefile FORCE
-#	$(MAKE) -C src
-
-#testrun: source FORCE
 testrun: tests/Makefile FORCE
 	$(MAKE) -C tests check
 
@@ -80,4 +87,3 @@ distclean: clean
 	rm -rf tests
 
 .PHONY: clean distclean source testrun gcov _gcov
-
