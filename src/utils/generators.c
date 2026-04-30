@@ -163,7 +163,26 @@ void pwmgen_reset(SPwmGenState *psState) {
   psState->u8PhaseIdx = PWMPHASE_END;
 }
 
-// (Faster) PWM Generator section
+// (Faster) 16bit PWM Generator section
+
+SBitPwmGenState bitpwmgen_init(uint8_t u8HiUpper, uint8_t u8LoUpper, uint8_t u8PeriodLen,
+        bool bUp, uint8_t u8HiLower, uint8_t u8LoLower,
+        size_t szInputLen, uint8_t *pu8Input) {
+  SBitPwmGenState sBPGState = {
+    .sBitGenState = bitgen_init(0x00, bUp, u8HiLower, u8LoLower),
+    .sByteGenState = bytegen_init(pu8Input, szInputLen),
+    .sPwmXGenState = (SPwmXGenState)
+    {
+      .u8CurValue = 0x01, // ignored
+      .u8HiUpper = u8HiUpper,
+      .u8LoUpper = u8LoUpper,
+      .u8PeriodLen = u8PeriodLen,
+      .u8PhaseIdx = 2 // to force reset at first call of ~_next()
+    }
+  };
+  sBPGState.sBitGenState.u8BitIdx = 8;  // to force reset at first call of ~_next()
+  return sBPGState;
+}
 
 uint16_t bitpwmgen_next(SBitPwmGenState *psState) {
   SPwmXGenState *px = &psState->sPwmXGenState; // alias, for writing shorter lines

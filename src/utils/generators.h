@@ -58,7 +58,7 @@ extern "C" {
     union {
       FToXReset fReset;
       FByteToXResetV fResetV;
-    };
+    } ;
   } SToByteFunctions;
 
   typedef struct {
@@ -68,7 +68,7 @@ extern "C" {
     union {
       FToXReset fReset;
       FWordToXResetV fResetV;
-    };
+    } ;
   } SToWordFunctions;
 
   /**
@@ -154,6 +154,9 @@ extern "C" {
   bool pwmgen_end(const SPwmGenState *psState);
   void pwmgen_reset(SPwmGenState *psState);
 
+  SBitPwmGenState bitpwmgen_init(uint8_t u8HiUpper, uint8_t u8LoUpper, uint8_t u8PeriodLen,
+          bool bUp, uint8_t u8HiLower, uint8_t u8LoLower,
+          size_t szInputLen, uint8_t *pu8Input);
   uint16_t bitpwmgen_next(SBitPwmGenState *psState);
   bool bitpwmgen_end(const SBitPwmGenState *psState);
   void bitpwmgen_reset(SBitPwmGenState *psState);

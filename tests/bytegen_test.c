@@ -19,9 +19,9 @@ const STextAndLen gasInput[]={
   {TEXTANDLEN("")}
 };
 
-uint8_t gau8Input1[] = {3, 5, 7, 9};
-uint8_t gau8Param1[] = {10, 0x80, 0x00};
-uint16_t gau16Expected1[] = {0x8003, 0x0007, 0x8005, 0x0005, 0x8007, 0x0003, 0x8009, 0x0001};
+uint8_t gau8PwmInput1[] = {3, 5, 7, 9};     // pwm high signal lengths
+uint8_t gau8PwmParam1[] = {10, 0x80, 0x00}; // period length, high signal upper byte, low signal upper byte
+uint16_t gau16PwmExpected1[] = {0x8003, 0x0007, 0x8005, 0x0005, 0x8007, 0x0003, 0x8009, 0x0001};
 
 bool test_bytegen_iter(const STextAndLen sParam) {
   SByteGenState sGen = bytegen_init((uint8_t*) sParam.sText, sParam.zLen);
@@ -65,6 +65,6 @@ int main(int argc, char **argv) {
   assert(test_bytegen_reset(gasInput[0]));
   assert(test_bytegen_iter(gasInput[1]));
   assert(test_bytegen_reset(gasInput[1]));
-  assert(test_pwngen_iter(gau8Input1, ARRAY_SIZE(gau8Input1), gau16Expected1, gau8Param1[0], gau8Param1[1], gau8Param1[2]));
-  assert(test_pwmgen_reset(gau8Input1, ARRAY_SIZE(gau8Input1), gau16Expected1, gau8Param1[0], gau8Param1[1], gau8Param1[2]));
+  assert(test_pwngen_iter(gau8PwmInput1, ARRAY_SIZE(gau8PwmInput1), gau16PwmExpected1, gau8PwmParam1[0], gau8PwmParam1[1], gau8PwmParam1[2]));
+  assert(test_pwmgen_reset(gau8PwmInput1, ARRAY_SIZE(gau8PwmInput1), gau16PwmExpected1, gau8PwmParam1[0], gau8PwmParam1[1], gau8PwmParam1[2]));
 }

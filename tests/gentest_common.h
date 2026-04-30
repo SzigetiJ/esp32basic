@@ -14,6 +14,7 @@ extern "C" {
     fReset(pvState);
   }
 
+  bool check_seq8_equal(const uint8_t *pu8Act, const uint8_t *pu8Exp, size_t szLen);
   bool gentest_check_seq8_equal(const SToByteFunctions sFunc, void *pvSeqGen, const uint8_t *pu8Exp, size_t szExpLen);
   bool gentest_check_seq16_equal(const SToWordFunctions sFunc, void *pvSeqGen, const uint16_t *pu16Exp, size_t szExpLen);
 
