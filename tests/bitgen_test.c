@@ -110,7 +110,7 @@ bool test_bitgen_reset(SBitGenInitParam sParam, uint8_t u8Input, uint8_t u8Reset
   for (; i < 8; ++i) {
     au8Actual[i] = bitgen_next(&sGen);
   }
-  check_seq8_equal(au8Actual, pu8Exp, 8);
+  return check_seq8_equal(au8Actual, pu8Exp, 8);
 }
 
 bool test_bitseqgen_iter(SBitGenInitParam sParam, const uint8_t *pu8Input, size_t szInputLen, const uint8_t *pu8Expected) {

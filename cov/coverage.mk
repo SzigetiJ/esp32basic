@@ -25,7 +25,7 @@ HEADERS_MODULES=$(wildcard $(MODDIR)/*.h)
 OBJS_MODULES=$(addprefix modules/, $(notdir $(SOURCES_MODULES:.c=.o)))
 
 GCDA=$(OBJS:.o=.gcda) $(OBJS_UTILS:.o=.gcda) $(OBJS_MODULES:.o=.gcda)
-GCNO=$(OBJS:.o=.gcno) $(OBJS_UTILS:.o=.gcno) $(OBJS_MODULES:.o=.gcda)
+GCNO=$(OBJS:.o=.gcno) $(OBJS_UTILS:.o=.gcno) $(OBJS_MODULES:.o=.gcno)
 
 GCDA_EXIST := $(foreach gcda,$(GCDA),$(wildcard $(gcda)))
 GCNO_EXIST := $(foreach gcno,$(GCNO),$(wildcard $(gcno)))
@@ -44,6 +44,10 @@ src/%.c.gcov: src/%.gcno
 	cd src && $(GCOV) -wrabcfu -s ../.. $(<:src/%.gcno=%.o)
 	[ -f $@ ] || mv src/$(notdir $@) $@
 
+modules/%.c.gcov: modules/%.gcno
+	cd modules && $(GCOV) -wrabcfu -s ../.. $(<:modules/%.gcno=%.o)
+	[ -f $@ ] || mv modules/$(notdir $@) $@
+
 $(HTML): $(PROJ).info
 	genhtml -s --branch-coverage $(PROJ).info --output-directory $(dir $(HTML))
 
@@ -54,12 +58,12 @@ $(PROJ).pre.info: $(PROJ).base.info $(PROJ).test.info
 	lcov --rc lcov_branch_coverage=1 -a $(PROJ).base.info -a $(PROJ).test.info -o $@
 
 $(PROJ).base.info: testrun
-	lcov -z -d src
-	lcov --rc lcov_branch_coverage=1 -c -i -d src -o $@
+	lcov -z -d src -d modules
+	lcov --rc lcov_branch_coverage=1 -c -i -d src -d modules -o $@
 
 $(PROJ).test.info: $(PROJ).base.info
 	$(MAKE) -C tests check
-	lcov --rc lcov_branch_coverage=1 -c -d src -o $@
+	lcov --rc lcov_branch_coverage=1 -c -d src -d modules -o $@
 
 
 testrun: tests/Makefile FORCE
@@ -78,12 +82,14 @@ clean:
 	rm -f $(PROJ).test.info
 	rm -rf $(dir $(HTML))
 	rm -f src/*.gcda
+	rm -f modules/*.gcda
 	rm -f tests/*.gcda
 	$(MAKE) -C tests clean
 
 distclean: clean
 	$(MAKE) -C tests distclean
 	rm -rf src
+	rm -rf modules
 	rm -rf tests
 
 .PHONY: clean distclean source testrun gcov _gcov

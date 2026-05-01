@@ -5,6 +5,7 @@
  * See LICENSE or <https://www.gnu.org/licenses/> for full license details.
  */
 #include <stdbool.h>
+#include <stddef.h>
 #include <string.h>
 #include "i2c.h"
 #include "bme280.h"
@@ -614,8 +615,10 @@ bool bme280_async_rx_cycle(SBme280StateDesc *psState, uint32_t *pu32hmsWaitHint)
         break;
         // getters
       default:
+      {
         uint8_t u8FlagMask = 1 << (psFlags->u4UpdAddr - COMM_RD_CALIB0);
         psFlags->u8Getters &= ~u8FlagMask;
+      }
     }
     psFlags->u4UpdAddr = 0;
     psFlags->u4UpdFlag = 0;
