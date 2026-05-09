@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 SZIGETI János
+ * Copyright 2026 SZIGETI János
  *
  * This file is part of Bilis ESP32 Basic, which is released under GNU General Public License.version 3.
  * See LICENSE or <https://www.gnu.org/licenses/> for full license details.
@@ -22,6 +22,7 @@
 #include "timg.h"
 #include "typeaux.h"
 #include "esp_attr.h"
+#include "exptuner.h"
 #include "bme280.h"
 #include "utils/i2cutils.h"
 
@@ -29,8 +30,9 @@
 
 // #1: Timings -- 50ms: 20Hz update freq.
 #define UART_FREQ_HZ    115200U
-#define I2C0_FREQ_HZ    400000U
-#define I2CSCAN_PERIOD_MS 5050U
+#define I2C0_FREQ_DEFAULT_HZ    400000U
+#define I2C0_FREQ_MIN_HZ         10000U
+#define I2C0_FREQ_MAX_HZ       5500000U
 #define BME280_TSTARTUP_MS   2U
 
 #define UARTCTRL_PERIOD_MS 100U
@@ -54,7 +56,6 @@ static void _bme280_print_result(uint64_t u64tckNow, const SBme280TPH *psRes, ui
 static void _bme280_cycle(uint64_t u64tckNow, const SI2cIfaceCfg *psIface, SBme280StateDesc *psState);
 static bool _modify_osrs(int8_t i8Diff, EBme280MetricSelector eMetric, SBme280StateDesc *psState);
 static void _uartctrl_cycle(uint64_t u64tckNow);
-
 void _i2c_error(void *pvParam);
 
 // =================== Global constants ================
@@ -72,13 +73,32 @@ const uint32_t gau32msForcedPeriod[] = {
   10000
 };
 
+const uint32_t gau32IirFilter[] = {
+  0,
+  2,
+  4,
+  8,
+  16,
+  16,
+  16,
+  16
+};
+
 // ==================== Local Data ================
 static SBme280StateDesc gsState;
 static bool gbDoubleWait = false; // BUGFIX: apparently, after modifying osrs_x value, the first measurement takes twice as much time as expected.
 static bool gbVerbose = false;
 static SI2cIfaceCfg gsIface;
 static uint8_t gu8ForcedPeriodIdx = 4;
+static uint8_t gu8IirFilterIdx = 0;
+static EBme280Tsb geTsb = BME280_TSB_500US;
+static bool gbSPI3W = false;
 
+static SExpTuner2Desc gsI2CFreqTuner;
+static SExpTuner2Value gsI2CFreq;
+static bool gbI2CFreqDirty = false;
+static SExpTuner2Value gsI2CFreqMax;
+static SExpTuner2Value gsI2CFreqMin;
 // ==================== Implementation ================
 // -------------- Internal functions --------------
 
@@ -196,6 +216,13 @@ static void _bme280_cycle(uint64_t u64tckNow, const SI2cIfaceCfg *psIface, SBme2
         }
       }
     }
+
+    // set i2c clock if needed
+    if (gbI2CFreqDirty && !bme280_is_waiting(psState)) {
+      i2c_settiming(i2c_regs(BME280_I2C_CH), HZ2APBTICKS(exptuner2_get(&gsI2CFreqTuner, &gsI2CFreq)));
+      gbI2CFreqDirty = false;
+    }
+
     // TX side
     bool bTxRes = bme280_async_tx_cycle(psIface, psState);
     bool bTodo = bme280_has_async_todo(psState);
@@ -205,7 +232,7 @@ static void _bme280_cycle(uint64_t u64tckNow, const SI2cIfaceCfg *psIface, SBme2
     if (bTodo && !bTxRes) { // could not initialize TX, retry soon
       // do not increase nxt timestamp
     } else if (bWaitForRx) {
-      if (((psState->u32CommState>>24)&0x0f)==6) {
+      if (((psState->u32CommState >> 24) & 0x0f) == 6) {
         u64tckNext = u64tckNow + MS2TICKS(BME280_TSTARTUP_MS);
       }
       // do not increase nxt timestamp
@@ -261,14 +288,28 @@ static void _uartctrl_cycle(uint64_t u64tckNow) {
   int8_t i8OsrsTDiff = 0;
   int8_t i8OsrsPDiff = 0;
   int8_t i8OsrsHDiff = 0;
+  int8_t i8IirDiff = 0;
   int8_t i8TsbDiff = 0;
   int8_t i8TfpDiff = 0;   // forced mode period
   static bool bInReset = false;
+  uint8_t u8I2CFreqTune = 0;
 
   if (u64tckNext <= u64tckNow) {
     while (0 < (gsUART0.STATUS & 0xff)) {
       char cCtrl = gsUART0Mapped.FIFO & 0xff;
       switch (cCtrl) {
+        case '3':
+          u8I2CFreqTune = 4;
+          break;
+        case '4':
+          u8I2CFreqTune = 5;
+          break;
+        case '#':
+          u8I2CFreqTune = 6;
+          break;
+        case '$':
+          u8I2CFreqTune = 7;
+          break;
         case '-':
           --i8OsrsTDiff;
           break;
@@ -287,6 +328,12 @@ static void _uartctrl_cycle(uint64_t u64tckNow) {
         case '}':
           ++i8OsrsHDiff;
           break;
+        case ';':
+          --i8IirDiff;
+          break;
+        case '\'':
+          ++i8IirDiff;
+          break;
         case '<':
           --i8TsbDiff;
           break;
@@ -304,14 +351,14 @@ static void _uartctrl_cycle(uint64_t u64tckNow) {
           break;
         case 'i':
           uart_printf(&gsUART0, "ID: 0x%02X\t", bme280_get_id(&gsState));
-          uart_printf(&gsUART0, "Setters: %02X\t", gsState.u32CommState&0xFF);
-          uart_printf(&gsUART0, "Getters: %02X\t", (gsState.u32CommState>>8)&0xFF);
-          uart_printf(&gsUART0, "CommFlags: %02X\r\n", (gsState.u32CommState>>16)&0xFF);
+          uart_printf(&gsUART0, "Setters: %02X\t", gsState.u32CommState & 0xFF);
+          uart_printf(&gsUART0, "Getters: %02X\t", (gsState.u32CommState >> 8)&0xFF);
+          uart_printf(&gsUART0, "CommFlags: %02X\r\n", (gsState.u32CommState >> 16)&0xFF);
           uart_printf(&gsUART0, "Config/Status: %08X\t", ((uint32_t*)gsState.au8ConfigMirror)[0]);
           uart_printf(&gsUART0, "Raw Data: %08X.%08X\r\n", ((uint32_t*)gsState.au8DataMirror)[1], ((uint32_t*)gsState.au8DataMirror)[0]);
           break;
         case 'I':
-          gbVerbose=!gbVerbose;
+          gbVerbose = !gbVerbose;
           uart_printf(&gsUART0, "Verbose mode: %u\r\n", gbVerbose);
           break;
         case 'r':
@@ -323,6 +370,14 @@ static void _uartctrl_cycle(uint64_t u64tckNow) {
         default:
           uart_printf(&gsUART0, "command not found\r\n");
       }
+      if (u8I2CFreqTune & 4) {
+        exptuner2_step(&gsI2CFreqTuner, &gsI2CFreqMin, &gsI2CFreqMax, &gsI2CFreq, u8I2CFreqTune & 1, u8I2CFreqTune & 2);
+        gbI2CFreqDirty = true;
+        uart_printf(&gsUART0, "I2C frequency set to %u Hz (period: %u APB cycles)\r\n",
+                exptuner2_get(&gsI2CFreqTuner, &gsI2CFreq),
+                HZ2APBTICKS(exptuner2_get(&gsI2CFreqTuner, &gsI2CFreq))
+                );
+      }
     }
     if (i8OsrsTDiff != 0) {
       gbDoubleWait |= _modify_osrs(i8OsrsTDiff, BME280_SEL_T, &gsState);
@@ -332,6 +387,10 @@ static void _uartctrl_cycle(uint64_t u64tckNow) {
     }
     if (i8OsrsHDiff != 0) {
       gbDoubleWait |= _modify_osrs(i8OsrsHDiff, BME280_SEL_H, &gsState);
+    }
+    if (i8IirDiff != 0) {
+      _modify_idx(i8IirDiff, &gu8IirFilterIdx, ARRAY_SIZE(gau32IirFilter), gau32IirFilter, "IIR filter");
+      bme280_set_config(&gsState, geTsb, (EBme280Iir)gu8IirFilterIdx, gbSPI3W);
     }
     if (i8TfpDiff != 0) {
       _modify_idx(i8TfpDiff, &gu8ForcedPeriodIdx, ARRAY_SIZE(gau32msForcedPeriod), gau32msForcedPeriod, "Forced mode period (ms)");
@@ -348,15 +407,18 @@ static void _uartctrl_cycle(uint64_t u64tckNow) {
   }
 }
 
-
 // -------------- Interface functions --------------
 
 void prog_init_pro_pre() {
   // we do some logging, hence set UART0 speed
   gsUART0.CLKDIV.raw = UART_HZ2CLKDIV(UART_FREQ_HZ, APB_FREQ_HZ);
+  gsI2CFreqTuner = exptuner2_init_b10();
+  gsI2CFreq = exptuner2_lower_bound(&gsI2CFreqTuner, I2C0_FREQ_DEFAULT_HZ);
+  gsI2CFreqMin = exptuner2_lower_bound(&gsI2CFreqTuner, I2C0_FREQ_MIN_HZ);
+  gsI2CFreqMax = exptuner2_lower_bound(&gsI2CFreqTuner, I2C0_FREQ_MAX_HZ);
 
   lockmgr_init();
-  i2c_init_controller(BME280_I2C_CH, I2C0_SCL_GPIO, I2C0_SDA_GPIO, HZ2APBTICKS(I2C0_FREQ_HZ));
+  i2c_init_controller(BME280_I2C_CH, I2C0_SCL_GPIO, I2C0_SDA_GPIO, HZ2APBTICKS(exptuner2_get(&gsI2CFreqTuner, &gsI2CFreq)));
 
   _bme280_init(&gsState, &gsIface);
 }

@@ -1,6 +1,6 @@
 ### Simple application to BME280 sensor
 
-In this small example application we show the usage of BME280.
+In this small example application we show how to use the BME280 sensor.
 
 #### Hardware components
 
@@ -30,6 +30,16 @@ The application accepts the following commands (on UART0):
 * `c` - read config/control/status registers to local mirror;
 * `r` - reset;
 * `i` - information;
-* `I` - Toggle verbose information (initially: off).
+* `I` - Toggle verbose information (initially: off);
+* `3` / `4` - Decrease / Increase communication speed (SCL frequency, default: 100KHz, multipliers: ..., 0.5, 1, 2, 5, 10, 20, ...);
+* `#` / `$` - Decrease / Increase communication speed (smooth multipliers: 1.0, 1.1, 1.2, 1.3, ..., 1.9(, 2.0, 2.1, ..., 2.4));
+* `;` / `'` - Decrease / Increase IIR filter value.
+
+
+Note: The maximal I2C SCL frequency on esp32basic is 5.5 MHz,
+this is the upper bound of communication speed the application allows.
+However, the BME280 Specificaton states that `Digital interface  I2C (up to 3.4 MHz)` (page 2).
+With the current I2C timing setting (SCL high/low period, START/STOP/SDA delays),
+the maximal communication speed is 1.8 MHz.
 
 #### Practices

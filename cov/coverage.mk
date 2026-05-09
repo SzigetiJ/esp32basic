@@ -9,23 +9,28 @@ GCOV=gcov
 HTML=html/index.html
 SRCDIR=../src
 MODDIR=../modules
+EGDIR=../examples
 
 ## we get direct information about modification time
 ## note: I do not like wildcard, but could not find better solution
-SOURCES=$(wildcard $(SRCDIR)/*.c)
-HEADERS=$(wildcard $(SRCDIR)/*.h)
-OBJS=$(addprefix src/, $(notdir $(SOURCES:.c=.o)))
+SOURCES_SRC=$(wildcard $(SRCDIR)/*.c) $(wildcard $(SRCDIR)/**/*.c)
+HEADERS_SRC=$(wildcard $(SRCDIR)/*.h)$(wildcard $(SRCDIR)/**/*.h)
+OBJS_SRC_PRE=$(SOURCES_SRC:%.c=%.o)
+OBJS_SRC=$(OBJS_SRC_PRE:../%=%)
 
-SOURCES_UTILS=$(wildcard $(SRCDIR)/utils/*.c)
-HEADERS_UTILS=$(wildcard $(SRCDIR)/utils/*.h)
-OBJS_UTILS=$(addprefix src/utils/, $(notdir $(SOURCES_UTILS:.c=.o)))
+SOURCES_MODULES=$(wildcard $(MODDIR)/*.c) $(wildcard $(MODDIR)/**/*.c)
+HEADERS_MODULES=$(wildcard $(MODDIR)/*.h) $(wildcard $(MODDIR)/**/*.h)
+OBJS_MODULES_PRE=$(SOURCES_MODULES:%.c=%.o)
+OBJS_MODULES=$(OBJS_MODULES_PRE:../%=%)
 
-SOURCES_MODULES=$(wildcard $(MODDIR)/*.c)
-HEADERS_MODULES=$(wildcard $(MODDIR)/*.h)
-OBJS_MODULES=$(addprefix modules/, $(notdir $(SOURCES_MODULES:.c=.o)))
+SOURCES_EXAMPLES=$(wildcard $(EGDIR)/*.c) $(wildcard $(EGDIR)/**/*.c)
+HEADERS_EXAMPLES=$(wildcard $(EGDIR)/*.h) $(wildcard $(EGDIR)/**/*.h)
+OBJS_EXAMPLES_PRE=$(SOURCES_EXAMPLES:%.c=%.o)
+OBJS_EXAMPLES=$(OBJS_EXAMPLES_PRE:../%=%)
 
-GCDA=$(OBJS:.o=.gcda) $(OBJS_UTILS:.o=.gcda) $(OBJS_MODULES:.o=.gcda)
-GCNO=$(OBJS:.o=.gcno) $(OBJS_UTILS:.o=.gcno) $(OBJS_MODULES:.o=.gcno)
+
+GCDA=$(OBJS_SRC:.o=.gcda) $(OBJS_MODULES:.o=.gcda) $(OBJS_EXAMPLES:.o=.gcda)
+GCNO=$(OBJS_SRC:.o=.gcno) $(OBJS_MODULES:.o=.gcno) $(OBJS_EXAMPLES:.o=.gcno)
 
 GCDA_EXIST := $(foreach gcda,$(GCDA),$(wildcard $(gcda)))
 GCNO_EXIST := $(foreach gcno,$(GCNO),$(wildcard $(gcno)))
@@ -48,6 +53,10 @@ modules/%.c.gcov: modules/%.gcno
 	cd modules && $(GCOV) -wrabcfu -s ../.. $(<:modules/%.gcno=%.o)
 	[ -f $@ ] || mv modules/$(notdir $@) $@
 
+examples/%.c.gcov: examples/%.gcno
+	cd examples && $(GCOV) -wrabcfu -s ../.. $(<:examples/%.gcno=%.o)
+	[ -f $@ ] || mv examples/$(notdir $@) $@
+
 $(HTML): $(PROJ).info
 	genhtml -s --branch-coverage $(PROJ).info --output-directory $(dir $(HTML))
 
@@ -59,11 +68,11 @@ $(PROJ).pre.info: $(PROJ).base.info $(PROJ).test.info
 
 $(PROJ).base.info: testrun
 	lcov -z -d src -d modules
-	lcov --rc lcov_branch_coverage=1 -c -i -d src -d modules -o $@
+	lcov --rc lcov_branch_coverage=1 -c -i -d src -d modules -d examples -o $@
 
 $(PROJ).test.info: $(PROJ).base.info
 	$(MAKE) -C tests check
-	lcov --rc lcov_branch_coverage=1 -c -d src -d modules -o $@
+	lcov --rc lcov_branch_coverage=1 -c -d src -d modules -d examples -o $@
 
 
 testrun: tests/Makefile FORCE
@@ -83,6 +92,7 @@ clean:
 	rm -rf $(dir $(HTML))
 	rm -f src/*.gcda
 	rm -f modules/*.gcda
+	rm -f examples/*.gcda
 	rm -f tests/*.gcda
 	$(MAKE) -C tests clean
 
@@ -90,6 +100,7 @@ distclean: clean
 	$(MAKE) -C tests distclean
 	rm -rf src
 	rm -rf modules
+	rm -rf examples
 	rm -rf tests
 
 .PHONY: clean distclean source testrun gcov _gcov

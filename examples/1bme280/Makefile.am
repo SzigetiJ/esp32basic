@@ -28,7 +28,7 @@ LDADD = $(top_builddir)/src/libesp32basic.a $(top_builddir)/modules/libesp32modu
 bin_PROGRAMS = \
  bme280app.elf
 
-bme280app_elf_SOURCES = bme280app.c
+bme280app_elf_SOURCES = bme280app.c exptuner.c
 
 if WITH_BINARIES
 CLEANFILES = \

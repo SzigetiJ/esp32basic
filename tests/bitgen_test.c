@@ -204,8 +204,8 @@ bool test_bitpwmgen_reset(SBitPwmGenState *psBPGState, uint32_t u32ResetAt, size
   return bRet;
 }
 
-uint8_t gau8Input2[1000];
-uint8_t gau8Exp2[8000];
+uint8_t gau8Input2[100];
+uint8_t gau8Exp2[800];
 
 int main(int argc, char **argv) {
 
