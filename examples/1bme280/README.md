@@ -35,7 +35,6 @@ The application accepts the following commands (on UART0):
 * `#` / `$` - Decrease / Increase communication speed (smooth multipliers: 1.0, 1.1, 1.2, 1.3, ..., 1.9(, 2.0, 2.1, ..., 2.4));
 * `;` / `'` - Decrease / Increase IIR filter value.
 
-
 Note: The maximal I2C SCL frequency on esp32basic is 5.5 MHz,
 this is the upper bound of communication speed the application allows.
 However, the BME280 Specificaton states that `Digital interface  I2C (up to 3.4 MHz)` (page 2).

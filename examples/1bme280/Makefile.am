@@ -1,7 +1,7 @@
 include $(top_srcdir)/scripts/elf2bin.mk
 include $(top_srcdir)/ld/flags.mk
 
-noinst_HEADERS = defines.h
+noinst_HEADERS = defines.h exptuner.h
 
 AM_CFLAGS  = -std=c11 -flto
 if WITH_BINARIES
