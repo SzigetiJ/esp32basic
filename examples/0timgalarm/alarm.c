@@ -31,7 +31,7 @@
 
 // #1: limits
 #define ALARM_DIVISOR TIM0_0_DIVISOR
-#define ALARM_VAL_MIN         50U
+#define ALARM_VAL_MIN         20U
 #define ALARM_VAL_MAX      10000U
 #define ALARM_VAL_INIT       200U
 #define SAMPLE_MIN            10U
@@ -66,7 +66,7 @@ typedef struct {
   Isr pfIsr;              ///< ISR to invoke in case of ALARM interrupt
   uint32_t u32tckPeriod;
   uint32_t u32SampleLen;  ///< Total number of samples to take.
-  uint32_t u32Countdown;  ///< How many samples are still to take.
+  uint32_t u32SampleIdx;  ///< How many samples are still to take.
   Result *psResult;
 } MeasurementState;
 
@@ -83,6 +83,8 @@ static void _uart_init();
 static void _uart_cycle(uint64_t u64tckNow);
 static void _alarm_reload_isr(void *pvParam);
 static void _alarm_inc_isr(void *pvParam);
+
+static void _print_resultline(uint32_t u32Idx, const Result *psResult);
 
 // =================== Global constants ================
 const bool gbStartAppCpu = START_APP_CPU;
@@ -106,52 +108,76 @@ DRAM_ATTR static MeasurementState gsAlarmParam = {
   .pfIsr = _alarm_reload_isr,
   .u32tckPeriod = ALARM_VAL_INIT,
   .u32SampleLen = SAMPLE_INIT,
-  .u32Countdown = SAMPLE_INIT,
+  .u32SampleIdx = SAMPLE_INIT,
   .psResult = &gsResult
 };
 
 // ============== Implementation ==============
 // -------------- Internal functions --------------
 
+/**
+ * This ISR is based on gu32ReloadConfig configuration, where the AUTORELOAD (bit29) flag is set.
+ * In this case we do not have to modify the ALARM registers of the timer,
+ * since the timer is automatically reset.
+ * But even in this case we have to set ALARM_EN (bit10) to re-enable interrupt after clearing the interrupt.
+ * @param pvParam ptr to current MeasurementState structure.
+ */
 IRAM_ATTR static void _alarm_reload_isr(void *pvParam) {
   MeasurementState *psParam = (MeasurementState*)pvParam;
 
   // clear LEVEL interrupt
   gapsTIMG[psParam->sAlarm.eTimg]->INT_CLR_TIMERS = 1 << psParam->sAlarm.eTimer;
 
+  // user section begin
+  // ...
+
   // storing clock value
-  psParam->psResult->au64tckSample[psParam->u32SampleLen - psParam->u32Countdown] = timg_ticks(psParam->sTimer);
-  --psParam->u32Countdown;
+  psParam->psResult->au64tckSample[psParam->u32SampleIdx] = timg_ticks(psParam->sTimer);
+  ++psParam->u32SampleIdx;
+
+  // ...
+  // user section end
 
   // either allow next alarm or terminate the process
-  if (0 < psParam->u32Countdown) {
+  if (psParam->u32SampleIdx < psParam->u32SampleLen) {
     timg_tregs(psParam->sAlarm)->CONFIG = psParam->u32Config;
   } else {
     _alarm_stop(psParam, true);
   }
 }
 
+/**
+ * This ISR must be used of AUTORELOAD is not enabled in TIMGnTx CONFIG register.
+ * To re-enable interrupt we have to set a new value in the ALARM registers,
+ * as the timer is not reset as the alarm occurs.
+ * Also, the interrupt has to be re-enabled by setting ALARM_EN (bit10) in COMFIG register.
+ * @param pvParam ptr to current MeasurementState structure.
+ */
 IRAM_ATTR static void _alarm_inc_isr(void *pvParam) {
   MeasurementState *psParam = (MeasurementState*)pvParam;
 
   // clear LEVEL interrupt
   gapsTIMG[psParam->sAlarm.eTimg]->INT_CLR_TIMERS = 1 << psParam->sAlarm.eTimer;
 
+  // user section begin
+  // ...
+
   // storing clock value
-  psParam->psResult->au64tckSample[psParam->u32SampleLen - psParam->u32Countdown] = timg_ticks(psParam->sTimer);
-  --psParam->u32Countdown;
+  psParam->psResult->au64tckSample[psParam->u32SampleIdx] = timg_ticks(psParam->sTimer);
+  ++psParam->u32SampleIdx;
+
+  // ...
+  // user section end
 
   // either allow next alarm or terminate the process
-  if (0 < psParam->u32Countdown) {
+  if (psParam->u32SampleIdx < psParam->u32SampleLen) {
     uint64_t u64tckAlarm = (((uint64_t)timg_tregs(psParam->sAlarm)->ALARMHI) << 32) | timg_tregs(psParam->sAlarm)->ALARMLO;
     u64tckAlarm += psParam->u32tckPeriod;
-    timg_tregs(psParam->sAlarm)->ALARMLO = u64tckAlarm & 0xFFFFFFFF;
-    timg_tregs(psParam->sAlarm)->ALARMHI = u64tckAlarm >> 32;
+    timg_set_alarm(psParam->sAlarm, u64tckAlarm);
     timg_tregs(psParam->sAlarm)->CONFIG = psParam->u32Config;
   } else {
     _alarm_stop(psParam, false);
   }
-
 }
 
 IRAM_ATTR static void _alarm_stop(MeasurementState *psParam, bool bReload) {
@@ -160,9 +186,6 @@ IRAM_ATTR static void _alarm_stop(MeasurementState *psParam, bool bReload) {
   gapsTIMG[psParam->sAlarm.eTimg]->INT_CLR_TIMERS = 1 << psParam->sAlarm.eTimer;
 
   psParam->psResult->bReload = bReload;
-  psParam->psResult->sAlarm = psParam->sAlarm;
-  psParam->psResult->u32tckPeriod = psParam->u32tckPeriod;
-  psParam->psResult->u32SampleLen = psParam->u32SampleLen;
 
   _alarm_isr_detach(geIsrCpu, psParam->sAlarm);
   psParam->bOngoing = false;
@@ -173,16 +196,27 @@ static void _alarm_start(MeasurementState *psParam) {
   uart_printf(&gsUART0, "Starting measurement...");
   psParam->bOngoing = true;
 
+  // temporarily disable alarm TIMGnTx (stop running while setting the registers)
+  timg_tregs(psParam->sAlarm)->CONFIG = 0;
+
+  // initialize parameters
+  psParam->u32SampleIdx = 1;
+  psParam->psResult->sAlarm = psParam->sAlarm;
+  psParam->psResult->u32tckPeriod = psParam->u32tckPeriod;
+  psParam->psResult->u32SampleLen = psParam->u32SampleLen;
+
+  // attach ISR to alarm interrupt
   _alarm_isr_attach(geIsrCpu, psParam->sAlarm, INT_CH, psParam->pfIsr);
-  timg_tregs(psParam->sAlarm)->LOADLO = 0;
-  timg_tregs(psParam->sAlarm)->LOADHI = 0;
-  timg_tregs(psParam->sAlarm)->LOAD = 0;
-  timg_tregs(psParam->sAlarm)->ALARMLO = psParam->u32tckPeriod;
-  timg_tregs(psParam->sAlarm)->ALARMHI = 0;
+
+  // set alarm TIMGnTx timer and alarm registers
+  timg_load(psParam->sAlarm, 0ULL);
+  timg_set_alarm(psParam->sAlarm, (uint64_t)psParam->u32tckPeriod);
+
+  // set alarm TIMGnTx interrupt flags
   gapsTIMG[psParam->sAlarm.eTimg]->INT_CLR_TIMERS = 1 << psParam->sAlarm.eTimer;
   gapsTIMG[psParam->sAlarm.eTimg]->INT_ENA_TIMERS |= 1 << psParam->sAlarm.eTimer;
-  psParam->u32Countdown = psParam->u32SampleLen - 1;
 
+  // get timer TIMGnTx current value (as reference (starting) time) and enable alarm TIMGnTx (with minimal delay)
   timg_tregs(psParam->sTimer)->UPDATE = 0;
   // start, inc value, autoreload, alarm enabled, generates LVL INT
   timg_tregs(psParam->sAlarm)->CONFIG = psParam->u32Config;
@@ -263,16 +297,25 @@ static void _uart_cycle(uint64_t u64tckNow) {
           _alarm_start(&gsAlarmParam);
           break;
         case 'c': // current Reg values
-          uart_printf(&gsUART0, "Alarm: {curr: %u, alarm: %u,%u, conf: %08X}, AppCpu: %u\r\n",
-                  (uint32_t)timg_ticks(gsAlarmParam.sAlarm),
+        {
+          uint64_t u64tckCurr = timg_ticks(gsAlarmParam.sAlarm);
+          uart_printf(&gsUART0, "Alarm(timer%u_%u): {curr: %08X,%08X, alarm: %08X,%08X, conf: %08X}, AppCpu: %u\r\n",
+                  gsAlarmParam.sAlarm.eTimg,
+                  gsAlarmParam.sAlarm.eTimer,
+                  (uint32_t)(u64tckCurr >> 32),
+                  (uint32_t)(u64tckCurr),
                   timg_tregs(gsAlarmParam.sAlarm)->ALARMHI,
                   timg_tregs(gsAlarmParam.sAlarm)->ALARMLO,
                   timg_tregs(gsAlarmParam.sAlarm)->CONFIG,
                   !!gbAppCpuStarted
                   );
+        }
           break;
         case 'C':
-          uart_printf(&gsUART0, "ISR addr: %p %p, dat: %p %p\r\n", _alarm_reload_isr, _alarm_inc_isr, &gsResult, &gsAlarmParam);
+          uart_printf(&gsUART0, "ISR addr: %p (reload) %p, (inc); dat: %p (result), %p (param)\r\n", _alarm_reload_isr, _alarm_inc_isr, &gsResult, &gsAlarmParam);
+          break;
+        case 'i':
+          uart_printf(&gsUART0, "TIMER %u.%u\r\n", gsAlarmParam.sTimer.eTimg, gsAlarmParam.sTimer.eTimer);
           break;
 
           // Alarm value modification
@@ -319,20 +362,27 @@ static void _uart_cycle(uint64_t u64tckNow) {
       }
     }
     if (bPrintResult) {
-      uint32_t u32Actual = gsResult.au64tckSample[u32PrintNR] - gsResult.au64tckSample[0];
-      uint32_t u32Increment = gsAlarmParam.u32tckPeriod + (gsResult.bReload ? CONST_ALARM_DELAY_TCK : 0);
-      if (gsResult.bReload && (u32Increment % 2 == 0)) --u32Increment;
-      uint32_t u32Expected = u32PrintNR * (u32Increment);
-      int32_t i32Diff = u32Actual - u32Expected;
-      uart_printf(&gsUART0, "%u\t%u\t%u\t%d\r\n",
-              u32PrintNR, u32Actual, u32Expected, i32Diff);
+      _print_resultline(u32PrintNR, &gsResult);
       ++u32PrintNR;
-      if (u32PrintNR == gsAlarmParam.u32SampleLen) {
+      if (u32PrintNR == gsResult.u32SampleLen) {
         bPrintResult = false;
       }
     }
     u64tckNext += MS2TICKS(bPrintResult ? UART_FLUSH_PERIOD_MS : UART_PERIOD_MS);
   }
+}
+
+static void _print_resultline(uint32_t u32Idx, const Result *psResult) {
+  uint32_t u32Actual = psResult->au64tckSample[u32Idx] - psResult->au64tckSample[0];
+  uint32_t u32Increment = psResult->u32tckPeriod + (psResult->bReload ? CONST_ALARM_DELAY_TCK : 0);
+  if (psResult->bReload && (u32Increment % 2 == 0)) --u32Increment;
+  uint32_t u32Expected = u32Idx * (u32Increment);
+  int32_t i32Diff = u32Actual - u32Expected;
+  if (u32Idx == 0) {  // print header
+    uart_printf(&gsUART0, "idx\tact\texp\tdiff\traw\r\n");
+  }
+  uart_printf(&gsUART0, "%u\t%u\t%u\t%d\t%u\r\n",
+          u32Idx, u32Actual, u32Expected, i32Diff, psResult->au64tckSample[u32Idx]);
 }
 
 // -------------- Interface functions --------------

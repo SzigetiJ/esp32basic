@@ -73,12 +73,13 @@ extern "C" {
   // ============== Global values / References ==============
   extern TIMG_Type gsTIMG0;
   extern TIMG_Type gsTIMG1;
-  static TIMG_Type *gapsTIMG[] = {
+  static TIMG_Type * const gapsTIMG[] = {
     &gsTIMG0,
     &gsTIMG1
   };
 
   // ============== Inline interface functions ==============
+
   static inline TimerRegs *timg_tregs(TimerId sTimer) {
     return &gapsTIMG[sTimer.eTimg]->T[sTimer.eTimer];
   }
@@ -94,10 +95,15 @@ extern "C" {
     timg_tregs(sTimer)->LOAD = 0;
   }
 
+  static inline void timg_set_alarm(TimerId sTimer, uint64_t u64Value) {
+    timg_tregs(sTimer)->ALARMLO = u64Value & 0xFFFFFFFF;
+    timg_tregs(sTimer)->ALARMHI = u64Value >> 32;
+  }
+
   static inline void timg_init_timer(TimerId sTimer, uint16_t u16Divisor) {
-  timg_tregs(sTimer)->CONFIG = (1 << 31) | (1 << 30) | (u16Divisor << 13);
-  timg_load(sTimer, 0ULL);
-}
+    timg_tregs(sTimer)->CONFIG = (1 << 31) | (1 << 30) | (u16Divisor << 13);
+    timg_load(sTimer, 0ULL);
+  }
 
   // ============== Interface functions ==============
 

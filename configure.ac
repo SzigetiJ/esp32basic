@@ -21,6 +21,7 @@ AC_CONFIG_FILES([
   examples/0button/Makefile
   examples/0hello/Makefile
   examples/0ledctrl/Makefile
+  examples/0timerint/Makefile
   examples/0timgalarm/Makefile
   examples/0uart/Makefile
   examples/0udma/Makefile
