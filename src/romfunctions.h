@@ -14,9 +14,14 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 
+#ifdef __XTENSA__
 #define RSR(reg, curval) __asm__ volatile ("rsr %0, " #reg : "=r" (curval));
 #define WSR(reg, newval) __asm__ volatile ("wsr %0, " #reg : : "r" (newval));
-
+#else
+#define RSR(reg, curval) while(0){};
+#define WSR(reg, curval) while(0){};
+#endif
+  
   void ets_isr_mask(uint32_t mask);
   void ets_isr_unmask(uint32_t mask);
   void *_xtos_set_interrupt_handler(int irq_number, void* function);

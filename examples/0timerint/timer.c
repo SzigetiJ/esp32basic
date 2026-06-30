@@ -45,6 +45,12 @@
 
 // ============= Local types ===============
 
+typedef enum {
+  CTIMER0 = 0,
+  CTIMER1 = 1,
+  CTIMER2 = 2
+} ECCompareIdx;
+
 /// The results of the last measurement are stored in such structure.
 
 typedef struct {
@@ -57,8 +63,9 @@ typedef struct {
 
 typedef struct {
   bool bOngoing;          ///< true: there is measurement process.going on.
+  bool bGeneral;          ///< use gerenal ISR
+  ECCompareIdx eCcompare;
   TimerId sTimer;         ///< Reference clock to read out current time value
-  uint32_t u32CcompareIdx;
   uint32_t u32cycPeriod;
   uint32_t u32SampleLen;  ///< Total number of samples to take.
   uint32_t u32SampleIdx;  ///< How many samples are still to take.
@@ -67,9 +74,11 @@ typedef struct {
 
 
 // ================ Local function declarations =================
-static void _ccompare_isr_attach();
-static void _ccompare_stop();
-static void _ccompare_isr(void *pvParam);
+static void _timerx_isr_attach();
+static void _timerx_stop();
+static void _timerx_general_isr(void *pvParam);
+static void _timer0_isr(void *pvParam);
+static void _timer1_isr(void *pvParam);
 
 static void _measurement_start(MeasurementState * psParam);
 static void _print_resultline(uint32_t u32Idx, const Result *psResult);
@@ -91,8 +100,11 @@ DRAM_ATTR static Result gsResult = {
 };
 static bool gbAppCpuStarted = false;
 DRAM_ATTR static MeasurementState gsMeasParam = {
+  .bOngoing = false,
+  .bGeneral = false,
+  .eCcompare = CTIMER0,
   .sTimer =
-  {TIMG_0, TIMER0},
+  {TIMG_0, CTIMER0},
   .u32cycPeriod = COMPAREINC_VAL_INIT,
   .u32SampleLen = SAMPLE_INIT,
   .u32SampleIdx = SAMPLE_INIT,
@@ -102,48 +114,83 @@ DRAM_ATTR static MeasurementState gsMeasParam = {
 // ============== Implementation ==============
 // -------------- Internal functions --------------
 
-IRAM_ATTR static void _ccompare_isr(void *pvParam) {
+IRAM_ATTR static void _timerx_general_isr(void *pvParam) {
   MeasurementState *psParam = (MeasurementState*)pvParam;
 
   uint32_t u32CurrCnt;
   // note, the xthal_xxx() register access is slower than RSR/WSR access, nevertheless, it is more elastic.
   // beeing #define macros, in case of RSR/WSR we have to explicitly set CCOMPAREn as first parameter.
-  u32CurrCnt = xthal_get_ccompare(psParam->u32CcompareIdx);
-  //  RSR(CCOMPARE1, u32CurrCnt);
+  u32CurrCnt = xthal_get_ccompare(psParam->eCcompare);
   u32CurrCnt += psParam->u32cycPeriod;
-  xthal_set_ccompare(psParam->u32CcompareIdx, u32CurrCnt);
-  //  WSR(CCOMPARE1, u32CurrCnt);
+  xthal_set_ccompare(psParam->eCcompare, u32CurrCnt);
 
   // storing clock value
   gsResult.au64tckSample[psParam->u32SampleIdx] = timg_ticks(psParam->sTimer);
   ++psParam->u32SampleIdx;
 
   if (psParam->u32SampleIdx == psParam->u32SampleLen) {
-    _ccompare_stop(pvParam);
+    _timerx_stop(pvParam);
   }
 }
 
-IRAM_ATTR static void _ccompare_stop(void *pvParam) {
+IRAM_ATTR static void _timer0_isr(void *pvParam) {
   MeasurementState *psParam = (MeasurementState*)pvParam;
 
-  ets_isr_mask(1 << gau8TimerIntNum[psParam->u32CcompareIdx]);
-  _xtos_set_interrupt_handler(gau8TimerIntNum[psParam->u32CcompareIdx], NULL);
+  uint32_t u32CurrCnt;
+  RSR(CCOMPARE0, u32CurrCnt);
+  u32CurrCnt += psParam->u32cycPeriod;
+  WSR(CCOMPARE0, u32CurrCnt);
+
+  // storing clock value
+  gsResult.au64tckSample[psParam->u32SampleIdx] = timg_ticks(psParam->sTimer);
+  ++psParam->u32SampleIdx;
+
+  if (psParam->u32SampleIdx == psParam->u32SampleLen) {
+    _timerx_stop(pvParam);
+  }
+}
+
+IRAM_ATTR static void _timer1_isr(void *pvParam) {
+  MeasurementState *psParam = (MeasurementState*)pvParam;
+
+  uint32_t u32CurrCnt;
+  RSR(CCOMPARE1, u32CurrCnt);
+  u32CurrCnt += psParam->u32cycPeriod;
+  WSR(CCOMPARE1, u32CurrCnt);
+
+  // storing clock value
+  gsResult.au64tckSample[psParam->u32SampleIdx] = timg_ticks(psParam->sTimer);
+  ++psParam->u32SampleIdx;
+
+  if (psParam->u32SampleIdx == psParam->u32SampleLen) {
+    _timerx_stop(pvParam);
+  }
+}
+
+IRAM_ATTR static void _timerx_stop(void *pvParam) {
+  MeasurementState *psParam = (MeasurementState*)pvParam;
+
+  ets_isr_mask(1 << gau8TimerIntNum[psParam->eCcompare]);
+  _xtos_set_interrupt_handler(gau8TimerIntNum[psParam->eCcompare], NULL);
 
   psParam->bOngoing = false;
   uart_printf(&gsUART0, " Done.\r\n");
 }
 
-IRAM_ATTR static void _ccompare_isr_attach(void *pvParam) {
+IRAM_ATTR static void _timerx_isr_attach(void *pvParam) {
   MeasurementState *psParam = (MeasurementState*)pvParam;
+  Isr fIsr = psParam->bGeneral ? _timerx_general_isr :
+          psParam->eCcompare == CTIMER0 ? _timer0_isr :
+          psParam->eCcompare == CTIMER1 ? _timer1_isr :
+          _timerx_general_isr;
   uint32_t u32Ccount;
   u32Ccount = xthal_get_ccount();
-  //  RSR(CCOUNT, u32Ccount);
   uint32_t u32Ccompare = u32Ccount;
   u32Ccompare += psParam->u32cycPeriod;
-  xthal_set_ccompare(psParam->u32CcompareIdx, u32Ccompare);
-  //  WSR(CCOMPARE1, u32Ccompare);
-  _xtos_set_interrupt_handler_arg(gau8TimerIntNum[psParam->u32CcompareIdx], _ccompare_isr, (int)pvParam);
-  ets_isr_unmask(1 << gau8TimerIntNum[psParam->u32CcompareIdx]);
+  xthal_set_ccompare(psParam->eCcompare, u32Ccompare);
+
+  _xtos_set_interrupt_handler_arg(gau8TimerIntNum[psParam->eCcompare], fIsr, (int)pvParam);
+  ets_isr_unmask(1 << gau8TimerIntNum[psParam->eCcompare]);
 }
 
 static void _measurement_start(MeasurementState * psParam) {
@@ -153,7 +200,7 @@ static void _measurement_start(MeasurementState * psParam) {
   psParam->psResult->u32cycPeriod = psParam->u32cycPeriod;
   psParam->psResult->u32SampleLen = psParam->u32SampleLen;
 
-  _ccompare_isr_attach(psParam);
+  _timerx_isr_attach(psParam);
 
   psParam->psResult->au64tckSample[0] = timg_ticks(psParam->sTimer);
 }
@@ -178,7 +225,7 @@ static void _uart_cycle(uint64_t u64tckNow) {
         case '1':
         case '2': // TIMG_1 TIMER0
           uart_printf(&gsUART0, "Using ccompare%c\r\n", cCtrl);
-          gsMeasParam.u32CcompareIdx = cCtrl - '0';
+          gsMeasParam.eCcompare = cCtrl - '0';
           break;
         case 'r': // print result
           u32PrintNR = 0;
@@ -187,13 +234,21 @@ static void _uart_cycle(uint64_t u64tckNow) {
         case 's': // start measurement
           _measurement_start(&gsMeasParam);
           break;
+        case 'g':
+          gsMeasParam.bGeneral = true;
+          uart_printf(&gsUART0, "Using general ISR\r\n");
+          break;
+        case 'G':
+          gsMeasParam.bGeneral = false;
+          uart_printf(&gsUART0, "Using CCOMPAREn-specific ISR\r\n");
+          break;
         case 'c': // current Reg values
           break;
         case 'C':
-          uart_printf(&gsUART0, "ISR addr: %p, dat: %p %p\r\n", _ccompare_isr, &gsResult, &gsMeasParam);
+          uart_printf(&gsUART0, "ISR addr: %p, dat: %p %p, size: %u\r\n", _timerx_general_isr, &gsResult, &gsMeasParam, sizeof (MeasurementState));
           break;
         case 'i':
-          uart_printf(&gsUART0, "Ccompare%u\r\n", gsMeasParam.u32CcompareIdx);
+          uart_printf(&gsUART0, "Ccompare%u\r\n", gsMeasParam.eCcompare);
           break;
 
           // Alarm value modification
