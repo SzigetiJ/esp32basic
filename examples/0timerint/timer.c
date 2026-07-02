@@ -36,10 +36,6 @@
 #define SAMPLE_MAX           200U
 #define SAMPLE_INIT           50U
 
-// #2: Channels
-#define TIMER_N 1
-#define TIMER_INT 15
-
 // #3: Sizes
 #define SAMPLE_SIZE   SAMPLE_MAX
 
@@ -51,15 +47,11 @@ typedef enum {
   CTIMER2 = 2
 } ECCompareIdx;
 
-/// The results of the last measurement are stored in such structure.
-
 typedef struct {
   uint32_t u32cycPeriod;
   uint32_t u32SampleLen;
   uint64_t au64tckSample[SAMPLE_SIZE];
-} Result;
-
-/// Measurement runtime state settings and variables.
+} Result;                 ///< The results of the last measurement are stored in such structure.
 
 typedef struct {
   bool bOngoing;          ///< true: there is measurement process.going on.
@@ -70,7 +62,7 @@ typedef struct {
   uint32_t u32SampleLen;  ///< Total number of samples to take.
   uint32_t u32SampleIdx;  ///< How many samples are still to take.
   Result *psResult;
-} MeasurementState;
+} MeasurementState;       ///< Measurement runtime state settings and variables.
 
 
 // ================ Local function declarations =================
