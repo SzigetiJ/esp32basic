@@ -4,8 +4,9 @@ AM_CFLAGS  = -nostdlib -std=c11 -flto
 libesp32modules_a_AR=$(AR) rcs
 
 lib_LIBRARIES = libesp32modules.a
+modulesdir = $(includedir)/modules
 
-include_HEADERS = bh1750.h bme280.h dht22.h sht4x.h ssd1306.h tm1637.h ws2812.h
+modules_HEADERS = bh1750.h bme280.h dht22.h sht4x.h ssd1306.h tm1637.h ws2812.h
 nodist_include_HEADERS =
 
 libesp32modules_a_SOURCES = bh1750.c bme280.c dht22.c sht4x.c ssd1306.c tm1637.c ws2812.c
