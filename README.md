@@ -33,19 +33,21 @@ I cannot understand, how and why driving LED strip became a 'get-started' level 
 
 * Install required tools (see Requirements below).
 
-* Set your environment variables (`$PATH` for `xtensa-esp-elf` and `$IDF_TOOLS_PATH`(?) for `esptool.py`)
+* Set your environment variables (`$PATH` for `xtensa-esp-elf` gcc toolkit and `$IDF_TOOLS_PATH`(?) for `esptool.py`).
 
 * Follow [installation instruction](INSTALL) until `make` (`make install` is not reuqired).
-Personally, I always do multiple `VPATH` builds with different configuration settings.
+Personally, I prefer having multiple `VPATH` builds with different configuration settings.
 In order to use the `xtensa-esp-elf` toolchain, you have to call the configure script with option
 `--host=xtensa-esp32-elf`.
 
-* Hopefully, the build runs without any error, and
+* Hopefully, the build process runs without any error, and
 the `examples` subdirectory (within the build / dist / VPATH directory) contains binaries (`.bin` files).
 
-* Prepare your ESP32 device (there must be a figure in the README of the given example showing pin connections).
+* Prepare your ESP32 device (there must be a figure in the README in the directory of the given example showing pin connections).
 
-* Flash the binary to the device. Use either your own flashing tool or [my flashing script](scripts/flash.sh).
+* Write the binary to the flash storage of the device.
+Use either your own flashing tool or [my flashing script](scripts/flash.sh)
+(see script options and other information in [scripts directory](scripts)).
 
 #### Writing your own Bilis ESP32 application
 
@@ -111,7 +113,7 @@ THis list is supposed to grow longer and longer.
 (suggested versions: 13.2.0).
 
 * [esptool](https://github.com/espressif/esptool) Currently, the flash tools (see scripts) rely on `esptool.py`
-(suggested versions: v4.7.0).
+(suggested versions: >= v4.7.0).
 
 ## Contribution
 
