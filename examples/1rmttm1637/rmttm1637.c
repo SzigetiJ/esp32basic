@@ -28,8 +28,8 @@
 #define UART_FREQ_HZ 115200U
 
 // #2: Channels / wires / addresses
-#define CLK_GPIO         21U
-#define DIO_GPIO         19U
+#define CLK_GPIO         25U
+#define DIO_GPIO         26U
 #define CLK_CH           RMT_CH1
 #define DIO_CH           RMT_CH0
 
@@ -43,7 +43,7 @@
 
 typedef struct {
   STm1637State *psState;
-  uint64_t u64tckStart;
+  uint32_t u32tckStart;
 } SReadyCbParam;
 
 // ================ Local function declarations =================
@@ -69,10 +69,10 @@ static SReadyCbParam gsReadyData;
 
 static void _rmttm1637_ready(void *pvParam) {
   SReadyCbParam *psParam = (SReadyCbParam*) pvParam;
-  uint64_t u64TckStop = timg_ticks(gsTimer);
-  uart_printf(&gsUART0, "Display ready (failed ACKs: %03X)\tDt: %d ns\n",
+  uint32_t u32tckStop = (uint32_t)timg_ticks(gsTimer);
+  uart_printf(&gsUART0, "Display ready (failed ACKs: %03X)\tDt: %u ns\r\n",
           psParam->psState->abNak & 0xfff,
-          TICKS2NS((uint32_t) (u64TckStop - psParam->u64tckStart)));
+          TICKS2NS(u32tckStop - (uint32_t) psParam->u32tckStart));
 }
 
 static void _rmttm1637_init() {
@@ -100,18 +100,18 @@ static void _rmttm1637_cycle(uint64_t u64Ticks) {
           gau8Tm1637Data[i] = gau8NumToSeg[u8DatIdx];
           gau8Tm1637Data[TM1637_COLON_POS] |= 0x80;
         }
-        gsReadyData.u64tckStart = timg_ticks(gsTimer);
+        gsReadyData.u32tckStart = (uint32_t) timg_ticks(gsTimer);
         tm1637_flush_full(&gsTm1637State, TM1637_CELLS);
         break;
       case 1: // remove colon/dot
         gau8Tm1637Data[TM1637_COLON_POS] &= 0x7f;
-        gsReadyData.u64tckStart = timg_ticks(gsTimer);
+        gsReadyData.u32tckStart = (uint32_t) timg_ticks(gsTimer);
         tm1637_flush_range(&gsTm1637State, TM1637_COLON_POS, 1);
         break;
       case 2: // low brightness
       case 3: // high brightness
         tm1637_set_brightness(&gsTm1637State, true, u8Phase == 2 ? 2 : 7);
-        gsReadyData.u64tckStart = timg_ticks(gsTimer);
+        gsReadyData.u32tckStart = (uint32_t) timg_ticks(gsTimer);
         tm1637_flush_brightness(&gsTm1637State);
         break;
       case 4: // display '-' after colon
@@ -119,12 +119,12 @@ static void _rmttm1637_cycle(uint64_t u64Ticks) {
           gau8Tm1637Data[i] = 0x40;
         }
         gau8Tm1637Data[TM1637_COLON_POS] |= 0x80;
-        gsReadyData.u64tckStart = timg_ticks(gsTimer);
+        gsReadyData.u32tckStart = (uint32_t) timg_ticks(gsTimer);
         tm1637_flush_range(&gsTm1637State, TM1637_COLON_POS, TM1637_CELLS - TM1637_COLON_POS);
         break;
       default:  // remove colon/dot
         gau8Tm1637Data[TM1637_COLON_POS] &= 0x7f;
-        gsReadyData.u64tckStart = timg_ticks(gsTimer);
+        gsReadyData.u32tckStart = (uint32_t) timg_ticks(gsTimer);
         tm1637_flush_range(&gsTm1637State, TM1637_COLON_POS, 1);
     }
     // jump to next state
@@ -141,7 +141,6 @@ static void _rmttm1637_cycle(uint64_t u64Ticks) {
 }
 
 // -------------- Interface functions --------------
-
 void prog_init_pro_pre() {
   gsUART0.CLKDIV.raw = UART_HZ2CLKDIV(UART_FREQ_HZ, APB_FREQ_HZ);
   _rmttm1637_init();

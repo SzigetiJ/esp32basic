@@ -45,13 +45,68 @@ extern "C" {
   } STm1637State;
 
 
+  /**
+   * Initializes a state object.
+   * @param psIface Defines TM1637 communication interface (GPIO pins, RMT channels).
+   * @param pu8Data Source of 7 segment characters to display.
+   * @return Initialized TM1637 state descriptor.
+   */
   STm1637State tm1637_config(const STm1637Iface *psIface, uint8_t *pu8Data);
+
+  /**
+   * Initializes TM1637 communication peripherals.
+   * @param psState TM1637 state descriptor.
+   * @param u32ApbClkFreq APB clock frequency, used for calculating RMT divisor (and implicitly TM1637 CLK frequency).
+   * The default TM1637 CLK frequency is 500KHz. If the real APB clk freq is 80.000.000, but u32ApbClkFreq is set to 40.000.000,
+   * the TM1637 CLK frequency will be 1MHz, etc. The TM1637 CLK frequency can be tuned up to 2.5MHz (experimental).
+   */
   void tm1637_init(STm1637State *psState, uint32_t u32ApbClkFreq);
   void tm1637_deinit(STm1637State *psState);
+  
+  /**
+   * Sets TM1637 brightness value.
+   * Note, this function does not trigger communication. Either tm1637_flush_full()
+   * or tm1637_flush_brightness() must be invoked in order to apply changes.
+   * @param psState TM1637 state descriptor.
+   * @param bOn Turn display on (false: turn off).
+   * @param u8Value Valid range: [0..7] 0: lowest (1/16), 7: highest (14/16) brightness.
+   */
   void tm1637_set_brightness(STm1637State *psState, bool bOn, uint8_t u8Value);
+
+  /**
+   * Set callback function and parameter.
+   * This callback function will be invoked when any communication process is over.
+   * @param psState TM1637 state descriptor.
+   * @param fHandler Callback function.
+   * @param pvArg Parameter of the callback function.
+   */
   void tm1637_set_readycb(STm1637State *psState, Isr fHandler, void *pvArg);
+
+  /**
+   * Full flush consists of 3 TM1637 commands:
+   * 1. CMD_SETDATA: set write mode (with incremental addressing).
+   * 2. CMD_SETADDRESS: set initial address (and write data to display registers).
+   * 3. CMD_CTRLDISPLAY: set brightness.
+   * @param psState TM1637 state descriptor.
+   * @param u8Len Number of cells/characters to update in the display registers.
+   */
   void tm1637_flush_full(STm1637State *psState, uint8_t u8Len);
+
+  /**
+   * Limited display register update.
+   * A single command is sent (CMD_SETADDRESS) followed by data bytes.
+   * @param psState TM1637 state descriptor.
+   * @param u8Pos Start cell/character update at this position.
+   * @param u8Len Number of data bytes to send (number of cells/characters to update).
+   */
+
   void tm1637_flush_range(STm1637State *psState, uint8_t u8Pos, uint8_t u8Len);
+  /**
+   * Sets brightness on the TM1637 device.
+   * A single command is sent (CMD_CTRLDISPLAY) without any data bytes.
+   * tm1637_set_brightness() must be called before this function.
+   * @param psState TM1637 state descriptor.
+   */
   void tm1637_flush_brightness(STm1637State *psState);
 
 #ifdef __cplusplus

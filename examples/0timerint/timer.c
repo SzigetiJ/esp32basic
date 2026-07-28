@@ -17,6 +17,7 @@
 #include "main.h"
 #include "defines.h"
 #include "romfunctions.h"
+#include "rtc.h"
 #include "typeaux.h"
 #include "uart.h"
 #include "utils/uartutils.h"
@@ -242,6 +243,29 @@ static void _uart_cycle(uint64_t u64tckNow) {
         case 'i':
           uart_printf(&gsUART0, "Ccompare%u\r\n", gsMeasParam.eCcompare);
           break;
+        case 'z': // cycle through CPU_CPUPERIOD_SEL values
+          Reg rCpuPeriod = dport_regs()->CPU_PER_CONF & 3;
+          ++rCpuPeriod;
+          rCpuPeriod &= 3;
+          dport_regs()->CPU_PER_CONF = rCpuPeriod;
+          uart_printf(&gsUART0, "CPU_CPUPERIOD_SEL = %u\r\n", rCpuPeriod);
+          break;
+        case 'x': // cycle through clock sources
+          Reg rClkConf = gsRTC.CLK_CONF;
+          uart_printf(&gsUART0, "CLK_CONF = %08x\r\n", rClkConf);
+          uint32_t u32ClockSource = (rClkConf >> 27) & 3;
+          do {
+            ++u32ClockSource;
+            u32ClockSource &= 3;
+          } while (u32ClockSource == 0 || u32ClockSource == 2);
+          rClkConf &= ~(3 << 27);
+          rClkConf |= (u32ClockSource << 27);
+          // this will not work here:
+          // switching to any CLK SRC other than PLL will also cause change in APB frequency
+          // thus change in UART0 speed
+          //          gsRTC.CLK_CONF = rClkConf;
+          uart_printf(&gsUART0, "RTC_CNTL_SOC_CLK_SEL = %u (%08x)\r\n", u32ClockSource, rClkConf);
+          break;
 
           // Alarm value modification
         case '>':
@@ -312,7 +336,12 @@ static void _print_resultline(uint32_t u32Idx, const Result * psResult) {
 
 // -------------- Interface functions --------------
 
+//  RTC_CNTL_SOC_CLK_SEL SoC clock selection. 0: XTAL, 1: PLL, 2: CK8M, 3: APLL. (R/W)
+#define RTC_CNTL_SOC_CLK_SEL 1
+
 void prog_init_pro_pre() {
+  gsRTC.CLK_CONF = (RTC_CNTL_SOC_CLK_SEL << 27) | (2 << 12) | (1 << 9) | (4 << 1);
+
   _uart_init();
 }
 

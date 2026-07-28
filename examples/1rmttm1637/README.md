@@ -21,8 +21,8 @@ The inner subcycle is 6 steps long and is called **phase** (see `u8Phase`):
 #### Connections
 
 ```
-ESP32.GPIO21 -- X1.CLK
-ESP32.GPIO19 -- X1.DIO
+ESP32.GPIO25 -- X1.CLK
+ESP32.GPIO26 -- X1.DIO
 ESP32.GND    -- X1.GND
 ESP32.VCC    -- X1.VCC
 ```
@@ -34,3 +34,5 @@ and the numbers are smoothly faded in / faded out.
 
 * First, a square should be displayed in the top left corner (`0x63`).
 Then, this square should move around the display (clockwise).
+
+* Display everything (the 6 phases above) rotated by 180°.

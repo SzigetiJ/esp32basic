@@ -238,6 +238,28 @@ extern "C" {
   }
 
   /**
+   * Start transmit at two channels (nearly) simultaneously.
+   * @param eChannel0 Channel to start first.
+   * @param eChannel1 Channel to start second (with 2 instructions delay).
+   * @param bMemRdRst Should the controller reset its memory read address for the channels.
+   */
+  static inline void rmt_start_tx_sync(ERmtChannel eChannel0, ERmtChannel eChannel1, bool bMemRdRst) {
+    // read (note, the dst variables are NOT volatiles)
+    uint32_t u32Ch0Conf1 = gpsRMT->asChConf[eChannel0].r1.raw;
+    uint32_t u32Ch1Conf1 = gpsRMT->asChConf[eChannel1].r1.raw;
+
+    // set
+    u32Ch0Conf1 |= 1;
+    u32Ch0Conf1 |= bMemRdRst ? 8 : 0;
+    u32Ch1Conf1 |= 1;
+    u32Ch1Conf1 |= bMemRdRst ? 8 : 0;
+
+    // write
+    gpsRMT->asChConf[eChannel0].r1.raw = u32Ch0Conf1;
+    gpsRMT->asChConf[eChannel1].r1.raw = u32Ch1Conf1;
+  }
+
+  /**
    * Start receiving data.
    * @param eChannel Identifies the channel.
    * @param bMemWrRst Should the controller reset its memory write address for the channel.
