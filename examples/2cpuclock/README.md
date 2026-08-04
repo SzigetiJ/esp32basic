@@ -31,18 +31,18 @@ expected value.
 
 #### Control
 
-* `p` (OK) select `PLL_CLK` as clock source;
-* `x` (OK) select `XTL_CLK` as clock source;
-* `]` (OK) set higher PLL-based clock frequency;
-* `[` (OK) set lower PLL-based clock frequency;
-* `-` (OK) set higher XTL_CLK divisor (lower clock frequency);
-* `+` (OK) set lower XTL_CLK divisor (higher clock frequency);
-* `<` (OK) set lower dig vreg dbias;
-* `>` (OK) set higher dig vreg dbias;
-* `u` (OK) set lower UART0 baud;
-* `U` (OK) set higher UART0 baud;
-* `a` (OK) select UART0 clock source (`APB_CLK` or `REF_TICK`);
-* `i` (OK) Information about registers;
-* `I` (OK) display current settings;
-* `r` (OK) when re-entering a CPU freq state, use its last known vreg dbias setting;
-* `R` (OK) always use the default vreg dbias setting for any CPU freq state.
+* `p` select `PLL_CLK` as clock source;
+* `x` select `XTL_CLK` as clock source;
+* `]` set higher PLL-based clock frequency;
+* `[` set lower PLL-based clock frequency;
+* `-` set higher XTL_CLK divisor (lower clock frequency);
+* `+` set lower XTL_CLK divisor (higher clock frequency);
+* `<` set lower dig vreg dbias;
+* `>` set higher dig vreg dbias;
+* `u` set lower UART0 baud;
+* `U` set higher UART0 baud;
+* `a` select UART0 clock source (`APB_CLK` or `REF_TICK`);
+* `i` Information about registers;
+* `I` display current settings;
+* `r` when re-entering a CPU freq state, use its last known vreg dbias setting;
+* `R` always use the default vreg dbias setting for any CPU freq state.

@@ -28,6 +28,7 @@
 // =================== Hard constants =================
 // #0: Timings
 #define UART_PERIOD_MS       100U     ///< for polling UART0 RX for incoming commands
+#define UART_CYCLE_DELAY_MS 1000U
 #define LED_PERIOD_MS       1000U
 #define LED_HIGH_MS          100U
 
@@ -143,14 +144,6 @@ static uint8_t _xtal_ref_tick_div(uint8_t u8Idx) {
   return (XTL_CLK_FREQ_HZ / REF_TICK_FREQ_HZ) / gau32XtalDiv[u8Idx];
 };
 
-static inline void _print_xtl_params() {
-  uint32_t u32CpuFreqKHz = (XTL_CLK_FREQ_HZ / 1000) / gau32XtalDiv[gu8XtalClkIdx];
-  uint32_t u32RefFreqKHz = u32CpuFreqKHz / _xtal_ref_tick_div(gu8XtalClkIdx);
-  uart_printf(&gsUART0, "XTAL div#%u: %u, %u: %uKHz (ref: %uKHz)\r\n",
-          gu8XtalClkIdx, gau32XtalDiv[gu8XtalClkIdx],  _xtal_ref_tick_div(gu8XtalClkIdx),
-          u32CpuFreqKHz, u32RefFreqKHz);
-}
-
 static bool _modify_idx(uint8_t *pu8Idx, int8_t i8Diff, uint8_t u8Size, const uint32_t *pu32Values, const char *strText) {
   bool bRet = false;
   uint8_t u8IdxOrig = *pu8Idx;
@@ -206,7 +199,7 @@ static void _switch_to_any_clk(ECpuClockSource eClk) {
 }
 
 static void _uart_cycle(uint64_t u64tckNow) {
-  static uint64_t u64tckNext = MS2TICKS(1000);
+  static uint64_t u64tckNext = MS2TICKS(UART_CYCLE_DELAY_MS);  // first cycle
 
   if (u64tckNext <= u64tckNow) {
     while (0 < (gsUART0.STATUS & 0xff)) {
