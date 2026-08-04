@@ -20,6 +20,10 @@ extern "C" {
   // Y: source CLK frequency (APB or REF)
 #define UART_HZ2CLKDIV(X, Y) UART_TCK2CLKDIV(((Y) << 4) / (X))
 
+#define UART_TICK_REF_ALWAYS_ON 0
+#define UART_TICK_REF_ALWAYS_ON_OFS 27U
+#define UART_TICK_REF_ALWAYS_ON_BITS 1U
+
   // ============== Types ==============
 
   typedef enum {

@@ -50,6 +50,7 @@ AC_CONFIG_FILES([
   examples/1rmtmusic/Makefile
   examples/1rmttm1637/Makefile
   examples/1rmtws2812/Makefile
+  examples/2cpuclock/Makefile
   examples/3prog1/Makefile
   ld/Makefile
 ])
