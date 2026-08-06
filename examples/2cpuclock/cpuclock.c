@@ -218,12 +218,9 @@ static void _uart_cycle(uint64_t u64tckNow) {
           break;
 
         case 'r':
-          gbLoadVregDBias = true;
-          uart_printf(&gsUART0, "Load stored vreg dbias when CPU CLK is changed.\r\n");
-          break;
         case 'R':
-          gbLoadVregDBias = false;
-          uart_printf(&gsUART0, "Load default vreg dbias when CPU CLK is changed.\r\n");
+          gbLoadVregDBias = (cCtrl == 'r');
+          uart_printf(&gsUART0, "Load %s vreg dbias when CPU CLK is changed.\r\n", gbLoadVregDBias ? "stored" : "default");
           break;
 
           // modify UART0 baud
@@ -259,16 +256,11 @@ static void _uart_cycle(uint64_t u64tckNow) {
                   gbUart0ApbBased ? 'Y' : 'N', gbLoadVregDBias ? 'Y' : 'N', clock_get_dig_vreg_dbias_wak());
           break;
         case 'x': // switch to xtal
+        case 'p': // switch to pll
         {
-          uart_printf(&gsUART0, "Switch to XTL CPU clock source...");
-          _switch_to_any_clk(CLK_XTL);
-          uart_printf(&gsUART0, "done.\r\n");
-        }
-          break;
-        case 'p': // switch to xtal
-        {
-          uart_printf(&gsUART0, "Switch to PLL CPU clock source...");
-          _switch_to_any_clk(CLK_PLL);
+          ECpuClockSource eCpuSource = (cCtrl == 'p') ? CLK_PLL : CLK_XTL;
+          uart_printf(&gsUART0, "Switch to %s clock source...", eCpuSource == CLK_PLL ? "CLK_PLL" : "CLK_XTL");
+          _switch_to_any_clk(eCpuSource);
           uart_printf(&gsUART0, "done.\r\n");
         }
           break;
